@@ -1,0 +1,160 @@
+.app-container {
+  height: 100vh;
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────
+
+.sidenav {
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.sidenav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  border-radius: 10px;
+}
+
+.brand-icon {
+  color: #ffffff !important;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.brand-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.brand-tagline {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.nav-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  padding: 20px 24px 4px;
+}
+
+::ng-deep {
+  .active-link {
+    background: #eef2ff !important;
+    color: #4f46e5 !important;
+    border-right: 3px solid #4f46e5;
+
+    .mat-icon {
+      color: #4f46e5 !important;
+    }
+  }
+
+  .mat-mdc-nav-list {
+    padding-top: 4px;
+    padding-bottom: 0;
+  }
+}
+
+// ─── Sidebar footer ──────────────────────────────────────────────
+
+.sidenav-footer {
+  margin-top: auto;
+  padding: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+  color: #4338ca;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.user-email {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-role {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.logout-btn {
+  color: #94a3b8 !important;
+
+  &:hover {
+    color: #ef4444 !important;
+  }
+}
+
+// ─── Toolbar ──────────────────────────────────────────────────────
+
+.spacer {
+  flex: 1;
+}
+
+.org-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+// ─── Content ──────────────────────────────────────────────────────
+
+.main-content {
+  background: #f8fafc;
+  min-height: calc(100vh - 56px);
+}

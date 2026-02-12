@@ -1,0 +1,24 @@
+{
+  "name": "cdi-v2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Compensation Decision Intelligence MVP",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "api:dev": "npm run dev --workspace=apps/api",
+    "api:build": "npm run build --workspace=apps/api",
+    "web:dev": "npm run start --workspace=apps/web",
+    "web:build": "npm run build --workspace=apps/web",
+    "shared:build": "npm run build --workspace=packages/shared",
+    "db:migrate": "npx prisma migrate dev --schema=prisma/schema.prisma",
+    "db:generate": "npx prisma generate --schema=prisma/schema.prisma",
+    "db:seed": "npx tsx prisma/seed.ts",
+    "build:all": "npm run shared:build && npm run api:build && npm run web:build"
+  },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
+  }
+}

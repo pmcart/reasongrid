@@ -1,0 +1,21 @@
+Personnel Code,Given Name,Surname,Division,Position,Band,Territory,Site,Ccy,Fixed Comp,Variable Target Pct,Stock Award,Start Date,Worker Status,M/F,Evaluation
+TK-4001,Olivia,Hartmann,Technology,Platform Architect,IC6,DE,Frankfurt,EUR,118000,20,15000,2018-05-14,FTE,F,4.2
+TK-4002,Raj,Patel,Technology,Backend Developer,IC4,IN,Bangalore,INR,2800000,12,,2021-09-01,FTE,M,3.8
+TK-4003,Isabelle,Moreau,Commercial,Key Account Manager,IC5,FR,Lyon,EUR,76000,30,,2019-11-20,FTE,F,4.0
+TK-4004,Chen,Wei,Technology,ML Engineer,IC5,SG,Singapore,SGD,112000,15,10000,2020-03-10,FTE,M,4.5
+TK-4005,Emma,Lindqvist,People Operations,Talent Partner,IC4,SE,Stockholm,SEK,580000,10,,2022-01-15,FTE,F,3.5
+TK-4006,Tomasz,Nowak,Finance,FP&A Manager,IC5,PL,Warsaw,PLN,320000,15,,2017-08-07,FTE,M,3.9
+TK-4007,Aisha,Mohammed,Commercial,Business Development Lead,IC5,AE,Dubai,AED,420000,25,8000,2020-06-22,FTE,F,4.1
+TK-4008,Lucas,van der Berg,Technology,Site Reliability Engineer,IC4,NL,Utrecht,EUR,82000,12,7000,2021-04-18,FTE,M,3.7
+TK-4009,Yuki,Tanaka,Product,Product Owner,IC4,JP,Tokyo,JPY,9500000,12,,2022-08-30,FTE,F,3.6
+TK-4010,Marco,Bianchi,Technology,iOS Developer,IC3,IT,Rome,EUR,48000,10,,2023-02-14,Contractor,M,N/A
+TK-4011,Fatima,Al-Rashid,People Operations,Comp & Ben Analyst,IC3,AE,Abu Dhabi,AED,280000,10,,2022-11-05,FTE,F,3.4
+TK-4012,Patrick,O'Sullivan,Commercial,Regional Sales Director,IC7,IE,Dublin,EUR,145000,35,20000,2015-10-01,FTE,M,4.8
+TK-4013,Svetlana,Petrova,Finance,Treasury Analyst,IC3,DE,Berlin,EUR,55000,10,,2023-06-19,FTE,F,3.2
+TK-4014,James,Whitfield,Technology,Engineering Manager,M1,GB,London,GBP,105000,20,14000,2019-02-28,FTE,M,4.3
+TK-4015,Ana,Costa,Product,UX Researcher,IC3,PT,Lisbon,EUR,42000,10,,2023-04-10,FTE,F,3.5
+TK-4016,Kwame,Asante,Technology,Data Engineer,IC4,GH,Accra,USD,65000,12,,2021-07-12,FTE,M,3.9
+TK-4017,Hanna,Eriksson,Commercial,Partner Success Manager,IC4,SE,Gothenburg,SEK,520000,15,,2020-09-14,FTE,F,4.0
+TK-4018,Dmitri,Volkov,Technology,Security Engineer,IC5,DE,Munich,EUR,95000,15,11000,2018-12-03,FTE,M,4.4
+TK-4019,Leila,Amari,People Operations,L&D Specialist,IC3,FR,Paris,EUR,46000,10,,2022-05-22,FTE,F,3.3
+TK-4020,Oscar,Fernandez,Finance,Controller,IC6,ES,Madrid,EUR,88000,18,,2016-04-11,FTE,M,4.1

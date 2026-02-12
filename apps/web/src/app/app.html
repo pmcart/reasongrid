@@ -1,0 +1,60 @@
+@if (auth.isAuthenticated()) {
+  <mat-sidenav-container class="app-container">
+    <mat-sidenav mode="side" opened class="sidenav">
+      <div class="sidenav-brand">
+        <div class="brand-mark">
+          <mat-icon class="brand-icon">shield</mat-icon>
+        </div>
+        <div class="brand-info">
+          <span class="brand-name">CDI</span>
+          <span class="brand-tagline">Pay Intelligence</span>
+        </div>
+      </div>
+
+      <div class="nav-section-label">Main</div>
+      <mat-nav-list>
+        <a mat-list-item routerLink="/employees" routerLinkActive="active-link">
+          <mat-icon matListItemIcon>people</mat-icon>
+          <span>Employees</span>
+        </a>
+        <a mat-list-item routerLink="/imports" routerLinkActive="active-link">
+          <mat-icon matListItemIcon>upload_file</mat-icon>
+          <span>Imports</span>
+        </a>
+      </mat-nav-list>
+
+      <div class="nav-section-label">Analytics</div>
+      <mat-nav-list>
+        <a mat-list-item routerLink="/risk" routerLinkActive="active-link">
+          <mat-icon matListItemIcon>monitoring</mat-icon>
+          <span>Risk Radar</span>
+        </a>
+      </mat-nav-list>
+
+      <div class="sidenav-footer">
+        <div class="user-card">
+          <div class="user-avatar">{{ auth.user()?.email?.charAt(0)?.toUpperCase() }}</div>
+          <div class="user-info">
+            <span class="user-email">{{ auth.user()?.email }}</span>
+            <span class="user-role">{{ auth.user()?.role }}</span>
+          </div>
+          <button mat-icon-button (click)="logout()" class="logout-btn" matTooltip="Sign out">
+            <mat-icon>logout</mat-icon>
+          </button>
+        </div>
+      </div>
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+      <mat-toolbar>
+        <span class="org-name">{{ auth.user()?.organizationName }}</span>
+        <span class="spacer"></span>
+      </mat-toolbar>
+      <div class="main-content">
+        <router-outlet />
+      </div>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+} @else {
+  <router-outlet />
+}

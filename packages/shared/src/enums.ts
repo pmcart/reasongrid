@@ -1,0 +1,62 @@
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  HR_MANAGER = 'HR_MANAGER',
+  MANAGER = 'MANAGER',
+  VIEWER = 'VIEWER',
+}
+
+export enum DecisionType {
+  NEW_HIRE = 'NEW_HIRE',
+  PROMOTION = 'PROMOTION',
+  ADJUSTMENT = 'ADJUSTMENT',
+  ANNUAL_INCREASE = 'ANNUAL_INCREASE',
+  OTHER = 'OTHER',
+}
+
+export enum DecisionStatus {
+  DRAFT = 'DRAFT',
+  FINALISED = 'FINALISED',
+}
+
+export enum Rationale {
+  SENIORITY_TENURE = 'SENIORITY_TENURE',
+  RELEVANT_EXPERIENCE = 'RELEVANT_EXPERIENCE',
+  PERFORMANCE_HISTORY = 'PERFORMANCE_HISTORY',
+  SCOPE_OF_ROLE = 'SCOPE_OF_ROLE',
+  MARKET_CONDITIONS = 'MARKET_CONDITIONS',
+  GEOGRAPHIC_FACTORS = 'GEOGRAPHIC_FACTORS',
+  INTERNAL_EQUITY_ALIGNMENT = 'INTERNAL_EQUITY_ALIGNMENT',
+  PROMOTION_HIGHER_RESPONSIBILITY = 'PROMOTION_HIGHER_RESPONSIBILITY',
+  TEMPORARY_ADJUSTMENT = 'TEMPORARY_ADJUSTMENT',
+}
+
+export const RATIONALE_LABELS: Record<Rationale, string> = {
+  [Rationale.SENIORITY_TENURE]: 'Seniority / tenure',
+  [Rationale.RELEVANT_EXPERIENCE]: 'Relevant experience',
+  [Rationale.PERFORMANCE_HISTORY]: 'Performance history',
+  [Rationale.SCOPE_OF_ROLE]: 'Scope of role',
+  [Rationale.MARKET_CONDITIONS]: 'Market conditions',
+  [Rationale.GEOGRAPHIC_FACTORS]: 'Geographic factors',
+  [Rationale.INTERNAL_EQUITY_ALIGNMENT]: 'Internal equity alignment',
+  [Rationale.PROMOTION_HIGHER_RESPONSIBILITY]: 'Promotion into higher responsibility',
+  [Rationale.TEMPORARY_ADJUSTMENT]: 'Temporary adjustment',
+};
+
+export enum RiskState {
+  WITHIN_EXPECTED_RANGE = 'WITHIN_EXPECTED_RANGE',
+  REQUIRES_REVIEW = 'REQUIRES_REVIEW',
+  THRESHOLD_ALERT = 'THRESHOLD_ALERT',
+}
+
+export enum ImportJobStatus {
+  PENDING_MAPPING = 'PENDING_MAPPING',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+
+export enum RiskRunStatus {
+  RUNNING = 'RUNNING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}

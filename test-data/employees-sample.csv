@@ -1,0 +1,16 @@
+Staff No,First Name,Last Name,Department,Job Title,Grade,Work Country,Office City,Pay Currency,Annual Base Pay,Target Bonus %,Equity Grant,Date Joined,Contract Type,Sex,Last Review Score
+EMP-1001,Sarah,O'Connor,Engineering,Senior Software Engineer,L5,Ireland,Dublin,EUR,92000,15,12000,2019-03-15,Permanent,Female,Exceeds Expectations
+EMP-1002,Marcus,Weber,Engineering,Staff Engineer,L6,Germany,Berlin,EUR,115000,20,18000,2017-06-01,Permanent,Male,Outstanding
+EMP-1003,Priya,Sharma,Product,Product Manager,L5,United Kingdom,London,GBP,88000,15,10000,2020-01-10,Permanent,Female,Meets Expectations
+EMP-1004,Jean-Pierre,Dubois,Finance,Financial Analyst,L3,France,Paris,EUR,58000,10,,2022-04-20,Permanent,Male,Meets Expectations
+EMP-1005,Anna,Kowalski,Engineering,Frontend Developer,L4,Netherlands,Amsterdam,EUR,78000,12,8000,2021-08-12,Permanent,Female,Exceeds Expectations
+EMP-1006,Tom,Richardson,Sales,Account Executive,L4,United Kingdom,Manchester,GBP,65000,25,,2020-11-03,Permanent,Male,Meets Expectations
+EMP-1007,Elena,Rossi,Human Resources,HR Business Partner,L4,Italy,Milan,EUR,62000,10,,2018-09-22,Permanent,Female,Exceeds Expectations
+EMP-1008,Lars,Andersen,Engineering,DevOps Engineer,L4,Germany,Munich,EUR,82000,12,9000,2021-02-14,Permanent,Male,Meets Expectations
+EMP-1009,Sofia,Martinez,Product,UX Designer,L3,Spain,Barcelona,EUR,52000,10,,2023-01-09,Fixed-Term,Female,New Hire
+EMP-1010,David,Chen,Engineering,Engineering Manager,L6,Ireland,Cork,EUR,120000,20,22000,2016-07-18,Permanent,Male,Outstanding
+EMP-1011,Katrina,Müller,Finance,Senior Accountant,L4,Austria,Vienna,EUR,68000,12,,2019-11-25,Permanent,Female,Meets Expectations
+EMP-1012,James,O'Brien,Sales,Sales Director,L7,Ireland,Dublin,EUR,135000,30,25000,2015-03-01,Permanent,Male,Exceeds Expectations
+EMP-1013,Marie,Lefèvre,Engineering,QA Engineer,L3,Belgium,Brussels,EUR,55000,10,,2022-06-13,Permanent,Female,Meets Expectations
+EMP-1014,Henrik,Johansson,Product,Data Analyst,L3,Netherlands,Rotterdam,EUR,54000,10,,2023-03-27,Permanent,Male,New Hire
+EMP-1015,Chloe,Williams,Human Resources,Compensation Specialist,L4,United Kingdom,London,GBP,72000,12,,2020-05-11,Permanent,Female,Exceeds Expectations
