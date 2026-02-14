@@ -21,6 +21,12 @@
           <mat-icon matListItemIcon>upload_file</mat-icon>
           <span>Imports</span>
         </a>
+        @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
+          <a mat-list-item routerLink="/rationale-library" routerLinkActive="active-link">
+            <mat-icon matListItemIcon>menu_book</mat-icon>
+            <span>Rationale Library</span>
+          </a>
+        }
       </mat-nav-list>
 
       <div class="nav-section-label">Analytics</div>
@@ -29,6 +35,12 @@
           <mat-icon matListItemIcon>monitoring</mat-icon>
           <span>Risk Radar</span>
         </a>
+        @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
+          <a mat-list-item routerLink="/audit" routerLinkActive="active-link">
+            <mat-icon matListItemIcon>history</mat-icon>
+            <span>Audit Log</span>
+          </a>
+        }
       </mat-nav-list>
 
       <div class="sidenav-footer">

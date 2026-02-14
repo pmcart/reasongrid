@@ -16,10 +16,12 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users      User[]
-  employees  Employee[]
-  importJobs ImportJob[]
-  riskRuns   RiskRun[]
+  users                 User[]
+  employees             Employee[]
+  importJobs            ImportJob[]
+  riskRuns              RiskRun[]
+  rationaleDefinitions  RationaleDefinition[]
+  aiRiskReports         AiRiskReport[]
 }
 
 // --- Auth ---
@@ -70,6 +72,7 @@ model Employee {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   payDecisions PayDecision[]
+  snapshots    EmployeeSnapshot[]
 
   @@unique([organizationId, employeeId])
   @@index([organizationId])
@@ -111,36 +114,73 @@ model PayDecision {
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  owner      User     @relation("DecisionOwner", fields: [accountableOwnerUserId], references: [id])
-  approver   User     @relation("DecisionApprover", fields: [approverUserId], references: [id])
+  snapshotId             String?
+
+  employee   Employee           @relation(fields: [employeeId], references: [id])
+  owner      User               @relation("DecisionOwner", fields: [accountableOwnerUserId], references: [id])
+  approver   User               @relation("DecisionApprover", fields: [approverUserId], references: [id])
+  snapshot   EmployeeSnapshot?  @relation(fields: [snapshotId], references: [id])
   rationales PayDecisionRationale[]
 
   @@index([employeeId])
   @@index([status])
   @@index([effectiveDate])
+  @@index([snapshotId])
 }
 
-enum Rationale {
-  SENIORITY_TENURE
-  RELEVANT_EXPERIENCE
-  PERFORMANCE_HISTORY
-  SCOPE_OF_ROLE
-  MARKET_CONDITIONS
-  GEOGRAPHIC_FACTORS
-  INTERNAL_EQUITY_ALIGNMENT
-  PROMOTION_HIGHER_RESPONSIBILITY
-  TEMPORARY_ADJUSTMENT
+// --- Rationale Governance ---
+
+enum RationaleCategory {
+  STRUCTURAL
+  MARKET
+  PERFORMANCE
+  TEMPORARY
+  OTHER
+}
+
+enum RationaleStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model RationaleDefinition {
+  id                       String            @id @default(uuid())
+  organizationId           String
+  code                     String
+  name                     String
+  legalDescription         String            @db.Text
+  plainLanguageDescription String            @default("") @db.Text
+  category                 RationaleCategory
+  objectiveCriteriaTags    Json              @default("[]")
+  applicableDecisionTypes  Json              @default("[]")
+  status                   RationaleStatus   @default(ACTIVE)
+  version                  Int               @default(1)
+  effectiveFrom            DateTime          @default(now())
+  effectiveTo              DateTime?
+  jurisdictionScope        Json              @default("[]")
+  requiresSubstantiation   Boolean           @default(false)
+  createdByUserId          String?
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  organization            Organization           @relation(fields: [organizationId], references: [id])
+  payDecisionRationales   PayDecisionRationale[]
+
+  @@unique([organizationId, code, version])
+  @@index([organizationId, status])
+  @@index([organizationId, code])
 }
 
 model PayDecisionRationale {
-  id             String      @id @default(uuid())
-  payDecisionId  String
-  rationale      Rationale
+  id                    String      @id @default(uuid())
+  payDecisionId         String
+  rationaleDefinitionId String
+  rationaleSnapshot     Json
 
-  payDecision PayDecision @relation(fields: [payDecisionId], references: [id], onDelete: Cascade)
+  payDecision           PayDecision           @relation(fields: [payDecisionId], references: [id], onDelete: Cascade)
+  rationaleDefinition   RationaleDefinition   @relation(fields: [rationaleDefinitionId], references: [id])
 
-  @@unique([payDecisionId, rationale])
+  @@unique([payDecisionId, rationaleDefinitionId])
 }
 
 // --- Imports ---
@@ -166,8 +206,10 @@ model ImportJob {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  uploadedBy   User         @relation(fields: [uploadedByUserId], references: [id])
-  organization Organization @relation(fields: [organizationId], references: [id])
+  uploadedBy   User               @relation(fields: [uploadedByUserId], references: [id])
+  organization Organization       @relation(fields: [organizationId], references: [id])
+  snapshots    EmployeeSnapshot[]
+  riskRuns     RiskRun[]
 }
 
 // --- Risk Analysis ---
@@ -188,12 +230,30 @@ model RiskRun {
   id             String        @id @default(uuid())
   triggeredBy    String
   organizationId String
+  importJobId    String?
   startedAt      DateTime      @default(now())
   finishedAt     DateTime?
   status         RiskRunStatus @default(RUNNING)
 
   organization Organization    @relation(fields: [organizationId], references: [id])
+  importJob    ImportJob?      @relation(fields: [importJobId], references: [id])
   groups       RiskGroupResult[]
+  reports      AiRiskReport[]
+}
+
+model AiRiskReport {
+  id             String   @id @default(uuid())
+  riskRunId      String
+  organizationId String
+  summary        String   @db.Text
+  model          String
+  generatedAt    DateTime @default(now())
+
+  riskRun      RiskRun      @relation(fields: [riskRunId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([riskRunId])
 }
 
 model RiskGroupResult {
@@ -216,4 +276,106 @@ model RiskGroupResult {
   @@index([groupKey])
   @@index([riskState])
   @@index([computedAt])
+}
+
+// --- Employee Snapshots ---
+
+model EmployeeSnapshot {
+  id                 String   @id @default(uuid())
+  employeeId         String
+  importJobId        String?
+  organizationId     String
+
+  employeeExternalId String
+  roleTitle          String
+  jobFamily          String?
+  level              String
+  country            String
+  location           String?
+  currency           String
+  baseSalary         Float
+  bonusTarget        Float?
+  ltiTarget          Float?
+  hireDate           DateTime?
+  employmentType     String?
+  gender             String?
+  performanceRating  String?
+
+  // Computed context fields (populated at pay decision time, null for import snapshots)
+  tenureYears            Float?
+  compaRatio             Float?
+  positionInRange        Float?
+  comparatorGroupKey     String?
+  priorPromotionCount    Int?
+  lastPromotionDate      DateTime?
+  priorIncreaseCount     Int?
+  priorIncreaseTotalPct  Float?
+
+  snapshotAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
+
+  employee     Employee      @relation(fields: [employeeId], references: [id])
+  importJob    ImportJob?    @relation(fields: [importJobId], references: [id])
+  payDecisions PayDecision[]
+
+  @@index([employeeId, snapshotAt])
+  @@index([importJobId])
+  @@index([organizationId])
+  @@index([comparatorGroupKey])
+}
+
+// --- Salary Ranges ---
+
+model SalaryRange {
+  id             String   @id @default(uuid())
+  organizationId String
+  country        String
+  jobFamily      String?
+  level          String
+  currency       String
+  min            Float
+  mid            Float
+  max            Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, country, jobFamily, level])
+  @@index([organizationId])
+}
+
+// --- Audit Log ---
+
+enum AuditAction {
+  EMPLOYEE_CREATED
+  EMPLOYEE_UPDATED
+  EMPLOYEE_IMPORTED
+  PAY_DECISION_CREATED
+  PAY_DECISION_UPDATED
+  PAY_DECISION_FINALISED
+  IMPORT_STARTED
+  IMPORT_COMPLETED
+  IMPORT_FAILED
+  RISK_RUN_TRIGGERED
+  RISK_RUN_COMPLETED
+  USER_LOGIN
+  RATIONALE_CREATED
+  RATIONALE_UPDATED
+  RATIONALE_ARCHIVED
+}
+
+model AuditLog {
+  id             String      @id @default(uuid())
+  organizationId String
+  userId         String?
+  action         AuditAction
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime    @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([action])
 }

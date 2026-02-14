@@ -1,0 +1,39 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema=prisma/schema.prisma
+
+      - name: Build shared package
+        run: npm run shared:build
+
+      - name: Build API
+        run: npm run api:build
+
+      - name: Build Web
+        run: npm run web:build
+
+  # Railway auto-deploys from GitHub on push to main.
+  # This workflow validates the build succeeds before Railway picks it up.
+  # Cloudflare Pages also auto-deploys from GitHub — no action needed here.

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DecisionType, DecisionStatus, Rationale } from '../enums.js';
+import { DecisionType, DecisionStatus } from '../enums.js';
 
 export const createPayDecisionSchema = z.object({
   decisionType: z.nativeEnum(DecisionType),
@@ -10,16 +10,17 @@ export const createPayDecisionSchema = z.object({
   payAfterBonus: z.number().nullable().default(null),
   payBeforeLti: z.number().nullable().default(null),
   payAfterLti: z.number().nullable().default(null),
-  rationaleSelections: z.array(z.nativeEnum(Rationale)).min(1),
+  rationaleSelections: z.array(z.string().uuid()).min(1),
   supportingContext: z.string().min(1),
   evidenceReference: z.string().nullable().default(null),
-  accountableOwnerUserId: z.string(),
+  accountableOwnerUserId: z.string().optional(),
   approverUserId: z.string(),
 });
 
 export const payDecisionSchema = createPayDecisionSchema.extend({
   id: z.string(),
   employeeId: z.string(),
+  snapshotId: z.string().nullable().default(null),
   status: z.nativeEnum(DecisionStatus),
   finalisedAt: z.string().nullable(),
   createdAt: z.string(),

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run api:build:*)",
+      "Bash(npm run web:build:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(ollama pull:*)",
+      "Bash(tasklist:*)",
+      "Bash(cmd /c \"tasklist /FI \"\"PID eq 41652\"\"\")",
+      "Bash(powershell:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm run build:*)",
+      "Bash(taskkill:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(git init:*)",
+      "Bash(npm run build:all:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(node -e:*)",
+      "Bash(node:*)",
+      "Bash(npm run db:seed:*)",
+      "Bash(ollama list:*)"
+    ]
+  }
+}

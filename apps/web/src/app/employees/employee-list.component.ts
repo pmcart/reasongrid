@@ -16,6 +16,7 @@ interface EmployeeListResponse {
   total: number;
   page: number;
   pageSize: number;
+  coverage: { withDecisions: number; totalEmployees: number };
 }
 
 @Component({
@@ -55,6 +56,20 @@ interface EmployeeListResponse {
           <p>Loading employees...</p>
         </div>
       } @else if (employees.length > 0) {
+        @if (coverage) {
+          <div class="coverage-bar">
+            <mat-icon class="coverage-icon">assignment_turned_in</mat-icon>
+            <span>
+              <strong>{{ coverage.withDecisions }}</strong> of <strong>{{ coverage.totalEmployees }}</strong> employees have documented pay decisions
+            </span>
+            @if (coverage.withDecisions < coverage.totalEmployees) {
+              <span class="coverage-gap">
+                {{ coverage.totalEmployees - coverage.withDecisions }} without decisions
+              </span>
+            }
+          </div>
+        }
+
         <table mat-table [dataSource]="employees">
           <ng-container matColumnDef="employeeId">
             <th mat-header-cell *matHeaderCellDef>ID</th>
@@ -85,6 +100,17 @@ interface EmployeeListResponse {
             <td mat-cell *matCellDef="let emp">
               <span class="salary">{{ emp.baseSalary | number:'1.0-0' }}</span>
               <span class="currency">{{ emp.currency }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="decisions">
+            <th mat-header-cell *matHeaderCellDef>Decisions</th>
+            <td mat-cell *matCellDef="let emp">
+              @if (emp.decisionCount > 0) {
+                <span class="decision-count">{{ emp.decisionCount }}</span>
+              } @else {
+                <span class="decision-none">None</span>
+              }
             </td>
           </ng-container>
 
@@ -173,6 +199,56 @@ interface EmployeeListResponse {
       margin-left: 4px;
     }
 
+    .coverage-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #475569;
+    }
+
+    .coverage-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #4f46e5;
+    }
+
+    .coverage-gap {
+      margin-left: auto;
+      padding: 2px 10px;
+      background: #fef2f2;
+      color: #dc2626;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .decision-count {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #f1f5f9;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #475569;
+    }
+
+    .decision-none {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #fef2f2;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #dc2626;
+    }
+
     .loading-state {
       display: flex;
       flex-direction: column;
@@ -189,7 +265,8 @@ export class EmployeeListComponent implements OnInit {
   pageSize = 25;
   searchQuery = '';
   loading = false;
-  displayedColumns = ['employeeId', 'roleTitle', 'level', 'country', 'baseSalary'];
+  coverage: { withDecisions: number; totalEmployees: number } | null = null;
+  displayedColumns = ['employeeId', 'roleTitle', 'level', 'country', 'baseSalary', 'decisions'];
 
   constructor(private api: ApiService, private cdr: ChangeDetectorRef) {}
 
@@ -209,6 +286,7 @@ export class EmployeeListComponent implements OnInit {
       next: (res) => {
         this.employees = res.data;
         this.total = res.total;
+        this.coverage = res.coverage;
         this.loading = false;
         this.cdr.markForCheck();
       },

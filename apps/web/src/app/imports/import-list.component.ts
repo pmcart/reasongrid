@@ -5,12 +5,13 @@ import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ImportService } from './import.service';
 
 @Component({
   selector: 'app-import-list',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatTableModule, MatIconModule],
+  imports: [CommonModule, MatCardModule, MatButtonModule, MatTableModule, MatIconModule, MatProgressSpinnerModule],
   template: `
     <div class="page-container">
       <div class="page-header">
@@ -24,7 +25,21 @@ import { ImportService } from './import.service';
         </button>
       </div>
 
-      @if (imports.length > 0) {
+      @if (loading) {
+        <div class="loading-container">
+          <mat-spinner diameter="40"></mat-spinner>
+        </div>
+      } @else if (error) {
+        <div class="empty-state">
+          <mat-icon class="empty-state-icon" style="color: #b91c1c;">error</mat-icon>
+          <p class="empty-state-title">Failed to load imports</p>
+          <p class="empty-state-text">{{ error }}</p>
+          <button mat-raised-button color="primary" (click)="loadImports()" style="margin-top: 16px;">
+            <mat-icon>refresh</mat-icon>
+            Retry
+          </button>
+        </div>
+      } @else if (imports.length > 0) {
         <table mat-table [dataSource]="imports">
           <ng-container matColumnDef="id">
             <th mat-header-cell *matHeaderCellDef>Import ID</th>
@@ -115,10 +130,18 @@ import { ImportService } from './import.service';
     .count.errors {
       color: #b91c1c;
     }
+
+    .loading-container {
+      display: flex;
+      justify-content: center;
+      padding: 48px 0;
+    }
   `],
 })
 export class ImportListComponent implements OnInit {
   imports: any[] = [];
+  loading = true;
+  error: string | null = null;
   displayedColumns = ['id', 'status', 'createdCount', 'updatedCount', 'errorCount', 'createdAt'];
 
   constructor(
@@ -131,7 +154,21 @@ export class ImportListComponent implements OnInit {
   }
 
   loadImports() {
-    this.importService.getImports().subscribe((data) => (this.imports = data));
+    this.loading = true;
+    this.error = null;
+    this.importService.getImports().subscribe({
+      next: (data) => {
+        this.imports = data;
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Failed to load imports:', err);
+        this.error = err.status === 403
+          ? 'You do not have permission to view imports.'
+          : 'Could not load import history. Please check the API is running.';
+        this.loading = false;
+      },
+    });
   }
 
   startImport() {

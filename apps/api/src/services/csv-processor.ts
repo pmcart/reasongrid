@@ -7,6 +7,8 @@ import fs from 'fs';
 import { parse } from 'csv-parse';
 import { prisma } from '../lib/prisma.js';
 import { normalizeCountry, normalizeSalary, annualizeSalary } from './normalization.js';
+import { logAudit } from './audit.js';
+import { runRiskComputation } from './risk-computation.js';
 
 interface ImportError {
   row: number;
@@ -187,18 +189,42 @@ export async function processImport(
           },
         });
 
+        let employee;
         if (existing) {
-          await prisma.employee.update({
+          employee = await prisma.employee.update({
             where: { id: existing.id },
             data: { ...employeeData, organizationId },
           });
           updatedCount++;
         } else {
-          await prisma.employee.create({
+          employee = await prisma.employee.create({
             data: { ...employeeData, organizationId },
           });
           createdCount++;
         }
+
+        // Create immutable snapshot of employee data at import time
+        await prisma.employeeSnapshot.create({
+          data: {
+            employeeId: employee.id,
+            importJobId: importId,
+            organizationId,
+            employeeExternalId: employeeData.employeeId,
+            roleTitle: employeeData.roleTitle,
+            jobFamily: employeeData.jobFamily,
+            level: employeeData.level,
+            country: employeeData.country,
+            location: employeeData.location,
+            currency: employeeData.currency,
+            baseSalary: employeeData.baseSalary,
+            bonusTarget: employeeData.bonusTarget,
+            ltiTarget: employeeData.ltiTarget,
+            hireDate: employeeData.hireDate,
+            employmentType: employeeData.employmentType,
+            gender: employeeData.gender,
+            performanceRating: employeeData.performanceRating,
+          },
+        });
       } catch (err) {
         errors.push({
           row: rowNumber,
@@ -217,6 +243,19 @@ export async function processImport(
         mappingJson: mapping,
       },
     });
+
+    logAudit({
+      organizationId,
+      action: 'IMPORT_COMPLETED',
+      entityType: 'ImportJob',
+      entityId: importId,
+      metadata: { createdCount, updatedCount, errorCount: errors.length },
+    });
+
+    // Trigger risk computation after successful import (fire-and-forget)
+    runRiskComputation(organizationId, 'SYSTEM', importId).catch((err) =>
+      console.error('Risk computation after import failed:', err),
+    );
   } catch (err) {
     await prisma.importJob.update({
       where: { id: importId },
@@ -227,6 +266,15 @@ export async function processImport(
         errorCount: errors.length + 1,
       },
     });
+
+    logAudit({
+      organizationId,
+      action: 'IMPORT_FAILED',
+      entityType: 'ImportJob',
+      entityId: importId,
+      metadata: { error: (err as Error).message },
+    });
+
     console.error('Import processing failed:', err);
   }
 }

@@ -4,6 +4,7 @@ import { loginRequestSchema, registerRequestSchema, UserRole } from '@cdi/shared
 import { prisma } from '../lib/prisma.js';
 import { signToken } from '../lib/jwt.js';
 import { authenticate, authorize } from '../middleware/auth.js';
+import { logAudit } from '../services/audit.js';
 
 export const authRouter = Router();
 
@@ -26,6 +27,15 @@ authRouter.post('/login', async (req, res, next) => {
       organizationId: user.organizationId,
     });
 
+    logAudit({
+      organizationId: user.organizationId,
+      userId: user.id,
+      action: 'USER_LOGIN',
+      entityType: 'User',
+      entityId: user.id,
+      ipAddress: req.ip ?? null,
+    });
+
     res.json({
       token,
       user: {
@@ -36,6 +46,20 @@ authRouter.post('/login', async (req, res, next) => {
         organizationName: user.organization.name,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get users in the same organization (for owner/approver selection)
+authRouter.get('/users', authenticate, async (req, res, next) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { organizationId: req.user!.organizationId },
+      select: { id: true, email: true, role: true },
+      orderBy: { email: 'asc' },
+    });
+    res.json(users);
   } catch (err) {
     next(err);
   }
