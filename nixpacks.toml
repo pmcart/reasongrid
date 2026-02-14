@@ -1,0 +1,15 @@
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = [
+  "npm run shared:build",
+  "npm run api:build",
+  "npx prisma generate --schema=prisma/schema.prisma"
+]
+
+[start]
+cmd = "npx prisma migrate deploy --schema=prisma/schema.prisma && node apps/api/dist/index.js"
