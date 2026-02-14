@@ -18,6 +18,9 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "build:all": "npm run shared:build && npm run api:build && npm run web:build"
   },
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
   }
