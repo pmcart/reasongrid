@@ -16,12 +16,8 @@ import { initScheduler } from './services/scheduler.js';
 const app = express();
 const PORT = process.env['PORT'] || 3000;
 
-// CORS configuration
-const corsOrigin = process.env['CORS_ORIGIN'] || 'http://localhost:4200';
-app.use(cors({
-  origin: corsOrigin,
-  credentials: true,
-}));
+// CORS configuration — TODO: lock down after testing
+app.use(cors());
 app.use(express.json());
 
 // Routes
