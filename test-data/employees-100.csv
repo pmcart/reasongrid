@@ -1,0 +1,101 @@
+Staff No,First Name,Last Name,Department,Job Title,Grade,Work Country,Office City,Pay Currency,Annual Base Pay,Target Bonus %,Equity Grant,Date Joined,Contract Type,Sex,Last Review Score
+EMP-1001,Sarah,O'Connor,Engineering,Senior Software Engineer,L5,Ireland,Dublin,EUR,92000,15,12000,2019-03-15,Permanent,Female,Exceeds Expectations
+EMP-1002,Marcus,Weber,Engineering,Staff Engineer,L6,Germany,Berlin,EUR,115000,20,18000,2017-06-01,Permanent,Male,Outstanding
+EMP-1003,Priya,Sharma,Product,Product Manager,L5,United Kingdom,London,GBP,88000,15,10000,2020-01-10,Permanent,Female,Meets Expectations
+EMP-1004,Jean-Pierre,Dubois,Finance,Financial Analyst,L3,France,Paris,EUR,58000,10,,2022-04-20,Permanent,Male,Meets Expectations
+EMP-1005,Anna,Kowalski,Engineering,Frontend Developer,L4,Netherlands,Amsterdam,EUR,78000,12,8000,2021-08-12,Permanent,Female,Exceeds Expectations
+EMP-1006,Tom,Richardson,Sales,Account Executive,L4,United Kingdom,Manchester,GBP,65000,25,,2020-11-03,Permanent,Male,Meets Expectations
+EMP-1007,Elena,Rossi,Human Resources,HR Business Partner,L4,Italy,Milan,EUR,62000,10,,2018-09-22,Permanent,Female,Exceeds Expectations
+EMP-1008,Lars,Andersen,Engineering,DevOps Engineer,L4,Germany,Munich,EUR,82000,12,9000,2021-02-14,Permanent,Male,Meets Expectations
+EMP-1009,Sofia,Martinez,Product,UX Designer,L3,Spain,Barcelona,EUR,52000,10,,2023-01-09,Fixed-Term,Female,New Hire
+EMP-1010,David,Chen,Engineering,Engineering Manager,L6,Ireland,Cork,EUR,120000,20,22000,2016-07-18,Permanent,Male,Outstanding
+EMP-1011,Katrina,Müller,Finance,Senior Accountant,L4,Austria,Vienna,EUR,68000,12,,2019-11-25,Permanent,Female,Meets Expectations
+EMP-1012,James,O'Brien,Sales,Sales Director,L7,Ireland,Dublin,EUR,135000,30,25000,2015-03-01,Permanent,Male,Exceeds Expectations
+EMP-1013,Marie,Lefèvre,Engineering,QA Engineer,L3,Belgium,Brussels,EUR,55000,10,,2022-06-13,Permanent,Female,Meets Expectations
+EMP-1014,Henrik,Johansson,Product,Data Analyst,L3,Netherlands,Rotterdam,EUR,54000,10,,2023-03-27,Permanent,Male,New Hire
+EMP-1015,Chloe,Williams,Human Resources,Compensation Specialist,L4,United Kingdom,London,GBP,72000,12,,2020-05-11,Permanent,Female,Exceeds Expectations
+EMP-1016,Liam,Murphy,Engineering,Senior Software Engineer,L5,Ireland,Dublin,EUR,98000,15,14000,2018-05-20,Permanent,Male,Outstanding
+EMP-1017,Aoife,Byrne,Engineering,Senior Software Engineer,L5,Ireland,Dublin,EUR,89000,15,11000,2020-09-01,Permanent,Female,Meets Expectations
+EMP-1018,Patrick,Kelly,Engineering,Senior Software Engineer,L5,Ireland,Cork,EUR,95000,15,13000,2019-01-10,Permanent,Male,Exceeds Expectations
+EMP-1019,Niamh,Ryan,Engineering,Software Engineer,L4,Ireland,Dublin,EUR,75000,12,8000,2021-04-15,Permanent,Female,Meets Expectations
+EMP-1020,Conor,Walsh,Engineering,Software Engineer,L4,Ireland,Dublin,EUR,80000,12,9000,2020-07-22,Permanent,Male,Exceeds Expectations
+EMP-1021,Siobhán,Doyle,Engineering,Software Engineer,L4,Ireland,Cork,EUR,73000,12,7500,2022-01-10,Permanent,Female,Meets Expectations
+EMP-1022,Seán,Fitzgerald,Engineering,Junior Developer,L3,Ireland,Dublin,EUR,52000,10,,2023-06-01,Permanent,Male,New Hire
+EMP-1023,Emma,Gallagher,Engineering,Junior Developer,L3,Ireland,Dublin,EUR,48000,10,,2023-09-15,Permanent,Female,New Hire
+EMP-1024,Thomas,Fischer,Engineering,Staff Engineer,L6,Germany,Berlin,EUR,112000,20,17000,2018-02-01,Permanent,Male,Exceeds Expectations
+EMP-1025,Lena,Schmidt,Engineering,Senior Software Engineer,L5,Germany,Berlin,EUR,96000,15,13000,2019-06-10,Permanent,Female,Exceeds Expectations
+EMP-1026,Maximilian,Becker,Engineering,Senior Software Engineer,L5,Germany,Munich,EUR,99000,15,14000,2018-11-20,Permanent,Male,Outstanding
+EMP-1027,Julia,Hoffmann,Engineering,Software Engineer,L4,Germany,Berlin,EUR,79000,12,8500,2021-03-15,Permanent,Female,Meets Expectations
+EMP-1028,Felix,Wagner,Engineering,Software Engineer,L4,Germany,Munich,EUR,84000,12,9000,2020-08-01,Permanent,Male,Exceeds Expectations
+EMP-1029,Hannah,Bauer,Engineering,Junior Developer,L3,Germany,Berlin,EUR,53000,10,,2023-02-20,Permanent,Female,New Hire
+EMP-1030,Niklas,Klein,Engineering,DevOps Engineer,L4,Germany,Munich,EUR,81000,12,8500,2021-06-15,Permanent,Male,Meets Expectations
+EMP-1031,Charlotte,Braun,Engineering,QA Engineer,L3,Germany,Berlin,EUR,54000,10,,2022-09-01,Permanent,Female,Meets Expectations
+EMP-1032,Oliver,Hughes,Engineering,Senior Software Engineer,L5,United Kingdom,London,GBP,85000,15,11000,2019-04-01,Permanent,Male,Exceeds Expectations
+EMP-1033,Emily,Taylor,Engineering,Senior Software Engineer,L5,United Kingdom,London,GBP,79000,15,10000,2020-02-15,Permanent,Female,Meets Expectations
+EMP-1034,George,Brown,Engineering,Software Engineer,L4,United Kingdom,Manchester,GBP,62000,12,7000,2021-07-10,Permanent,Male,Meets Expectations
+EMP-1035,Lucy,Wilson,Engineering,Software Engineer,L4,United Kingdom,London,GBP,58000,12,6500,2022-03-20,Permanent,Female,Meets Expectations
+EMP-1036,Harry,Davies,Engineering,Junior Developer,L3,United Kingdom,London,GBP,42000,10,,2023-07-01,Permanent,Male,New Hire
+EMP-1037,Isabelle,Evans,Engineering,Junior Developer,L3,United Kingdom,Manchester,GBP,39000,10,,2023-10-01,Permanent,Female,New Hire
+EMP-1038,Daniel,Thomas,Engineering,Engineering Manager,L6,United Kingdom,London,GBP,105000,20,18000,2017-01-15,Permanent,Male,Outstanding
+EMP-1039,Sophie,Jackson,Product,Product Manager,L5,United Kingdom,London,GBP,82000,15,10000,2019-08-01,Permanent,Female,Exceeds Expectations
+EMP-1040,William,White,Product,Product Manager,L5,United Kingdom,London,GBP,90000,15,12000,2018-05-10,Permanent,Male,Outstanding
+EMP-1041,Grace,Harris,Product,UX Designer,L3,United Kingdom,London,GBP,48000,10,,2022-11-01,Permanent,Female,Meets Expectations
+EMP-1042,Jack,Martin,Product,Data Analyst,L3,United Kingdom,Manchester,GBP,45000,10,,2023-01-15,Permanent,Male,New Hire
+EMP-1043,Amelia,Thompson,Sales,Account Executive,L4,United Kingdom,London,GBP,70000,25,,2020-06-01,Permanent,Female,Exceeds Expectations
+EMP-1044,Benjamin,Robinson,Sales,Account Executive,L4,United Kingdom,Manchester,GBP,68000,25,,2021-02-01,Permanent,Male,Meets Expectations
+EMP-1045,Olivia,Clark,Sales,Sales Manager,L5,United Kingdom,London,GBP,85000,30,10000,2018-10-15,Permanent,Female,Exceeds Expectations
+EMP-1046,Alexander,Lewis,Sales,Sales Manager,L5,United Kingdom,London,GBP,92000,30,12000,2017-09-01,Permanent,Male,Outstanding
+EMP-1047,Fiona,Brennan,Finance,Financial Analyst,L3,Ireland,Dublin,EUR,56000,10,,2022-05-01,Permanent,Female,Meets Expectations
+EMP-1048,Ciarán,McCarthy,Finance,Financial Analyst,L3,Ireland,Dublin,EUR,60000,10,,2021-08-15,Permanent,Male,Exceeds Expectations
+EMP-1049,Sinéad,Daly,Finance,Senior Accountant,L4,Ireland,Dublin,EUR,72000,12,,2019-12-01,Permanent,Female,Meets Expectations
+EMP-1050,Ronan,Power,Finance,Finance Manager,L5,Ireland,Dublin,EUR,95000,15,10000,2017-03-01,Permanent,Male,Outstanding
+EMP-1051,Aisling,Moran,Finance,Finance Manager,L5,Ireland,Cork,EUR,88000,15,9000,2018-07-15,Permanent,Female,Exceeds Expectations
+EMP-1052,Pierre,Moreau,Finance,Financial Analyst,L3,France,Paris,EUR,55000,10,,2022-08-01,Permanent,Male,Meets Expectations
+EMP-1053,Camille,Bernard,Finance,Financial Analyst,L3,France,Paris,EUR,53000,10,,2023-01-10,Permanent,Female,New Hire
+EMP-1054,Antoine,Petit,Finance,Senior Accountant,L4,France,Lyon,EUR,65000,12,,2020-04-01,Permanent,Male,Meets Expectations
+EMP-1055,Isabelle,Leroy,Finance,Senior Accountant,L4,France,Paris,EUR,63000,12,,2021-02-15,Permanent,Female,Meets Expectations
+EMP-1056,Marco,Bianchi,Engineering,Senior Software Engineer,L5,Italy,Milan,EUR,82000,15,10000,2019-10-01,Permanent,Male,Exceeds Expectations
+EMP-1057,Giulia,Colombo,Engineering,Senior Software Engineer,L5,Italy,Milan,EUR,76000,15,9000,2020-05-15,Permanent,Female,Meets Expectations
+EMP-1058,Alessandro,Romano,Engineering,Software Engineer,L4,Italy,Rome,EUR,65000,12,7000,2021-09-01,Permanent,Male,Meets Expectations
+EMP-1059,Francesca,Ricci,Engineering,Software Engineer,L4,Italy,Milan,EUR,60000,12,6500,2022-04-10,Permanent,Female,Meets Expectations
+EMP-1060,Pieter,De Vries,Engineering,Senior Software Engineer,L5,Netherlands,Amsterdam,EUR,94000,15,12000,2018-12-01,Permanent,Male,Outstanding
+EMP-1061,Sophie,Van den Berg,Engineering,Software Engineer,L4,Netherlands,Amsterdam,EUR,76000,12,8000,2021-05-20,Permanent,Female,Meets Expectations
+EMP-1062,Jan,Bakker,Product,Product Manager,L5,Netherlands,Amsterdam,EUR,90000,15,11000,2019-07-01,Permanent,Male,Exceeds Expectations
+EMP-1063,Eva,Visser,Product,UX Designer,L3,Netherlands,Amsterdam,EUR,50000,10,,2023-04-01,Permanent,Female,New Hire
+EMP-1064,Carlos,García,Engineering,Senior Software Engineer,L5,Spain,Madrid,EUR,78000,15,9000,2019-11-15,Permanent,Male,Exceeds Expectations
+EMP-1065,Lucía,Fernández,Engineering,Senior Software Engineer,L5,Spain,Barcelona,EUR,72000,15,8000,2020-08-01,Permanent,Female,Meets Expectations
+EMP-1066,Pablo,López,Engineering,Software Engineer,L4,Spain,Madrid,EUR,58000,12,6000,2021-12-01,Permanent,Male,Meets Expectations
+EMP-1067,Carmen,Rodríguez,Engineering,Software Engineer,L4,Spain,Barcelona,EUR,54000,12,5500,2022-07-15,Permanent,Female,Meets Expectations
+EMP-1068,Miguel,Hernández,Product,Data Analyst,L3,Spain,Madrid,EUR,46000,10,,2023-02-01,Permanent,Male,New Hire
+EMP-1069,Andrea,König,Human Resources,HR Business Partner,L4,Germany,Berlin,EUR,66000,10,,2019-05-01,Permanent,Female,Exceeds Expectations
+EMP-1070,Stefan,Richter,Human Resources,HR Manager,L5,Germany,Munich,EUR,88000,15,,2017-08-01,Permanent,Male,Outstanding
+EMP-1071,Katharina,Wolf,Human Resources,Compensation Specialist,L4,Germany,Berlin,EUR,64000,12,,2021-01-15,Permanent,Female,Meets Expectations
+EMP-1072,Robert,Hartmann,Human Resources,HR Coordinator,L3,Germany,Berlin,EUR,48000,10,,2023-05-01,Permanent,Male,New Hire
+EMP-1073,Maeve,O'Sullivan,Human Resources,HR Manager,L5,Ireland,Dublin,EUR,90000,15,,2018-03-10,Permanent,Female,Exceeds Expectations
+EMP-1074,Declan,Healy,Human Resources,HR Coordinator,L3,Ireland,Dublin,EUR,47000,10,,2023-04-15,Permanent,Male,New Hire
+EMP-1075,Roisín,Kavanagh,Product,Product Manager,L5,Ireland,Dublin,EUR,87000,15,10000,2019-09-01,Permanent,Female,Exceeds Expectations
+EMP-1076,Eoin,Nolan,Product,Data Analyst,L3,Ireland,Dublin,EUR,52000,10,,2022-10-01,Permanent,Male,Meets Expectations
+EMP-1077,Claire,Dunne,Product,UX Designer,L3,Ireland,Cork,EUR,49000,10,,2023-03-15,Permanent,Female,New Hire
+EMP-1078,François,Durand,Engineering,Software Engineer,L4,France,Paris,EUR,70000,12,7500,2021-04-01,Permanent,Male,Meets Expectations
+EMP-1079,Amélie,Girard,Engineering,Software Engineer,L4,France,Paris,EUR,64000,12,6500,2022-01-20,Permanent,Female,Meets Expectations
+EMP-1080,Nicolas,Robert,Engineering,Senior Software Engineer,L5,France,Lyon,EUR,86000,15,11000,2019-02-01,Permanent,Male,Exceeds Expectations
+EMP-1081,Chloé,Simon,Engineering,Senior Software Engineer,L5,France,Paris,EUR,80000,15,10000,2020-06-15,Permanent,Female,Meets Expectations
+EMP-1082,Hugo,Laurent,Engineering,Engineering Manager,L6,France,Paris,EUR,108000,20,16000,2016-11-01,Permanent,Male,Outstanding
+EMP-1083,Laura,García,Sales,Account Executive,L4,Spain,Madrid,EUR,55000,25,,2021-06-01,Permanent,Female,Meets Expectations
+EMP-1084,Javier,Martín,Sales,Account Executive,L4,Spain,Barcelona,EUR,58000,25,,2020-10-15,Permanent,Male,Exceeds Expectations
+EMP-1085,Isabella,Moretti,Sales,Account Executive,L4,Italy,Milan,EUR,56000,25,,2021-03-01,Permanent,Female,Meets Expectations
+EMP-1086,Luca,Esposito,Sales,Sales Manager,L5,Italy,Milan,EUR,80000,30,9000,2018-06-01,Permanent,Male,Exceeds Expectations
+EMP-1087,Chiara,Ferrara,Product,Product Manager,L5,Italy,Rome,EUR,78000,15,9000,2020-01-20,Permanent,Female,Meets Expectations
+EMP-1088,Matteo,Conte,Product,Data Analyst,L3,Italy,Milan,EUR,45000,10,,2023-06-15,Permanent,Male,New Hire
+EMP-1089,Marta,Nowak,Engineering,DevOps Engineer,L4,Netherlands,Amsterdam,EUR,80000,12,8500,2021-10-01,Permanent,Female,Meets Expectations
+EMP-1090,Daan,De Jong,Engineering,DevOps Engineer,L4,Netherlands,Rotterdam,EUR,83000,12,9000,2020-12-01,Permanent,Male,Exceeds Expectations
+EMP-1091,Lisa,Peters,Sales,Account Executive,L4,Netherlands,Amsterdam,EUR,64000,25,,2021-08-15,Permanent,Female,Meets Expectations
+EMP-1092,Bram,Jansen,Sales,Sales Manager,L5,Netherlands,Amsterdam,EUR,92000,30,11000,2018-04-01,Permanent,Male,Outstanding
+EMP-1093,Fionn,O'Neill,Sales,Account Executive,L4,Ireland,Dublin,EUR,68000,25,,2020-09-01,Permanent,Male,Exceeds Expectations
+EMP-1094,Orla,Quinn,Sales,Account Executive,L4,Ireland,Dublin,EUR,62000,25,,2021-11-15,Permanent,Female,Meets Expectations
+EMP-1095,Tadhg,Burke,Sales,Sales Manager,L5,Ireland,Dublin,EUR,98000,30,12000,2017-05-01,Permanent,Male,Outstanding
+EMP-1096,Saoirse,Connolly,Sales,Sales Manager,L5,Ireland,Cork,EUR,90000,30,10000,2018-09-15,Permanent,Female,Exceeds Expectations
+EMP-1097,Michael,Zimmermann,Finance,Finance Manager,L5,Germany,Munich,EUR,96000,15,10000,2017-10-01,Permanent,Male,Outstanding
+EMP-1098,Sabine,Krause,Finance,Senior Accountant,L4,Germany,Munich,EUR,67000,12,,2020-03-15,Permanent,Female,Meets Expectations
+EMP-1099,Ana,Sousa,Engineering,QA Engineer,L3,Spain,Barcelona,EUR,48000,10,,2023-01-20,Permanent,Female,New Hire
+EMP-1100,Diego,Ruiz,Engineering,QA Engineer,L3,Spain,Madrid,EUR,50000,10,,2022-11-01,Permanent,Male,Meets Expectations

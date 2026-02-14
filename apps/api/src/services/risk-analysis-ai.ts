@@ -141,7 +141,7 @@ export async function generateRiskAnalysis(
         { role: 'user', content: prompt },
       ],
       temperature: 0.2,
-      max_tokens: 1024,
+      max_tokens: 2048,
     }, {
       timeout: timeoutMs,
     });
