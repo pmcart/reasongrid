@@ -1,17 +1,22 @@
 /**
- * Ollama service — uses a local LLM to analyze CSV columns and suggest
- * mappings to CDI standard employee fields.
- * Falls back to deterministic matching if Ollama is unavailable.
+ * LLM service — uses OpenAI API for CSV column mapping suggestions.
+ * Falls back to deterministic matching if OpenAI is unavailable.
  */
 
+import OpenAI from 'openai';
 import { suggestMappings, computeMappingConfidence } from './normalization.js';
 
-const OLLAMA_BASE_URL = process.env['OLLAMA_BASE_URL'] || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env['OLLAMA_MODEL'] || 'qwen2.5:1.5b';
+const OPENAI_MODEL = process.env['OPENAI_MODEL'] || 'gpt-4o-mini';
 
-interface OllamaMappingResult {
+interface LLMMappingResult {
   mapping: Record<string, string | null>;
   confidence: Record<string, number>;
+}
+
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env['OPENAI_API_KEY'];
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey });
 }
 
 const STANDARD_FIELDS_DESCRIPTION = `
@@ -85,15 +90,13 @@ Rules:
 - A CSV column should only be mapped to ONE standard field.`;
 }
 
-function parseOllamaResponse(responseText: string): OllamaMappingResult | null {
+function parseLLMResponse(responseText: string): LLMMappingResult | null {
   try {
-    // Try to extract JSON from the response (handle markdown code blocks)
     let jsonStr = responseText.trim();
     const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim();
     }
-    // Also try to find a raw JSON object
     const braceMatch = jsonStr.match(/\{[\s\S]*\}/);
     if (braceMatch) {
       jsonStr = braceMatch[0];
@@ -128,9 +131,8 @@ export function getDeterministicMapping(csvColumns: string[]): {
 }
 
 /**
- * Try AI mapping with a timeout. Returns the AI result or null if unavailable/slow.
- * This is called inline during upload — if Ollama responds in time, we use AI mappings;
- * otherwise we fall back to deterministic.
+ * Try AI mapping with OpenAI. Returns the AI result or null if unavailable.
+ * Falls back to deterministic if OpenAI is not configured or fails.
  */
 export async function tryAIMapping(
   csvColumns: string[],
@@ -138,78 +140,64 @@ export async function tryAIMapping(
   timeoutMs = 30000,
 ): Promise<{ mapping: Record<string, string | null>; confidence: Record<string, number> } | null> {
   try {
-    return await callOllama(csvColumns, sampleRows, timeoutMs);
+    return await callOpenAI(csvColumns, sampleRows, timeoutMs);
   } catch (err) {
-    console.warn('[Ollama] AI mapping unavailable, using deterministic:', (err as Error).message);
+    console.warn('[LLM] AI mapping unavailable, using deterministic:', (err as Error).message);
     return null;
   }
 }
 
-async function callOllama(
+async function callOpenAI(
   csvColumns: string[],
   sampleRows: Record<string, string>[],
-  timeoutMs = 300000,
+  timeoutMs = 30000,
 ): Promise<{ mapping: Record<string, string | null>; confidence: Record<string, number> }> {
-  const prompt = buildPrompt(csvColumns, sampleRows);
+  const client = getOpenAIClient();
+  if (!client) {
+    throw new Error('OPENAI_API_KEY not configured');
+  }
 
-  console.log(`[Ollama] Sending request to ${OLLAMA_BASE_URL}/api/generate (model: ${OLLAMA_MODEL}, timeout: ${(timeoutMs / 1000).toFixed(0)}s)`);
-  console.log(`[Ollama] CSV columns: ${csvColumns.join(', ')}`);
+  const prompt = buildPrompt(csvColumns, sampleRows);
+  console.log(`[LLM] Sending CSV mapping request (model: ${OPENAI_MODEL})`);
+  console.log(`[LLM] CSV columns: ${csvColumns.join(', ')}`);
   const startTime = Date.now();
 
-  // Log elapsed time every 5 seconds so we can monitor progress
-  const progressTimer = setInterval(() => {
-    console.log(`[Ollama] Waiting... ${((Date.now() - startTime) / 1000).toFixed(0)}s elapsed`);
-  }, 5000);
+  const response = await client.chat.completions.create({
+    model: OPENAI_MODEL,
+    messages: [
+      { role: 'system', content: 'You are a data mapping assistant. Respond with JSON only.' },
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.1,
+    max_tokens: 512,
+    response_format: { type: 'json_object' },
+  }, {
+    timeout: timeoutMs,
+  });
 
-  let response: Response;
-  try {
-    response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        prompt,
-        stream: false,
-        format: 'json',
-        keep_alive: '10m',
-        options: {
-          temperature: 0.1,
-          num_predict: 512,
-          num_ctx: 2048,
-        },
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-  } catch (err) {
-    clearInterval(progressTimer);
-    throw err;
+  console.log(`[LLM] Response received in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('Empty response from OpenAI');
   }
 
-  clearInterval(progressTimer);
-  console.log(`[Ollama] Response received in ${((Date.now() - startTime) / 1000).toFixed(1)}s, status: ${response.status}`);
-
-  if (!response.ok) {
-    throw new Error(`Ollama returned ${response.status}`);
-  }
-
-  const data = await response.json() as { response: string };
-  console.log('[Ollama] Raw response:', data.response.substring(0, 500));
-  const result = parseOllamaResponse(data.response);
+  console.log('[LLM] Raw response:', content.substring(0, 500));
+  const result = parseLLMResponse(content);
 
   if (!result) {
-    throw new Error('Failed to parse Ollama JSON response');
+    throw new Error('Failed to parse OpenAI JSON response');
   }
 
   // Validate that mapped columns actually exist in the CSV
   for (const [field, col] of Object.entries(result.mapping)) {
     if (col !== null && !csvColumns.includes(col)) {
-      console.log(`[Ollama] Removing invalid mapping: ${field} -> "${col}" (not in CSV columns)`);
+      console.log(`[LLM] Removing invalid mapping: ${field} -> "${col}" (not in CSV columns)`);
       result.mapping[field] = null;
     }
   }
 
   // Compute confidence deterministically from column name similarity
-  // (LLM-generated confidence is unreliable with small models)
   result.confidence = computeMappingConfidence(result.mapping, csvColumns);
 
   return result;

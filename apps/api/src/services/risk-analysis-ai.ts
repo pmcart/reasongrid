@@ -1,11 +1,18 @@
 /**
- * AI Risk Analysis Service — uses a local Ollama model to generate a
+ * AI Risk Analysis Service — uses OpenAI API to generate a
  * narrative summary report from computed risk group results.
- * Falls back gracefully if Ollama is unavailable.
+ * Falls back gracefully if OpenAI is unavailable.
  */
 
-const OLLAMA_BASE_URL = process.env['OLLAMA_BASE_URL'] || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env['OLLAMA_RISK_MODEL'] || 'llama3.1:8b';
+import OpenAI from 'openai';
+
+const OPENAI_MODEL = process.env['OPENAI_RISK_MODEL'] || process.env['OPENAI_MODEL'] || 'gpt-4o-mini';
+
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env['OPENAI_API_KEY'];
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey });
+}
 
 interface RiskGroupInput {
   groupKey: string;
@@ -27,7 +34,6 @@ export interface RiskAnalysisReport {
 }
 
 function buildPrompt(groups: RiskGroupInput[], orgName?: string): string {
-  // Pre-categorise groups so the model doesn't have to
   const alerts = groups.filter((g) => g.riskState === 'THRESHOLD_ALERT');
   const reviews = groups.filter((g) => g.riskState === 'REQUIRES_REVIEW');
   const within = groups.filter((g) => g.riskState === 'WITHIN_EXPECTED_RANGE');
@@ -105,77 +111,63 @@ RULES:
 - Use markdown formatting with ## headers.`;
 }
 
-function parseResponse(responseText: string): string {
-  let text = responseText.trim();
-  const fenceMatch = text.match(/```(?:markdown)?\s*([\s\S]*?)```/);
-  if (fenceMatch) {
-    text = fenceMatch[1].trim();
-  }
-  return text;
-}
-
 /**
  * Generate an AI risk analysis report from computed risk group results.
- * Returns null if Ollama is unavailable or fails.
+ * Returns null if OpenAI is unavailable or fails.
  */
 export async function generateRiskAnalysis(
   groups: RiskGroupInput[],
   orgName?: string,
-  timeoutMs = 300000,
+  timeoutMs = 60000,
 ): Promise<RiskAnalysisReport | null> {
   if (groups.length === 0) return null;
+
+  const client = getOpenAIClient();
+  if (!client) {
+    console.warn('[LLM/Risk] OPENAI_API_KEY not configured, skipping AI analysis');
+    return null;
+  }
 
   const prompt = buildPrompt(groups, orgName);
   const startTime = Date.now();
 
-  console.log(`[Ollama/Risk] Requesting analysis from ${OLLAMA_BASE_URL} (model: ${OLLAMA_MODEL}, groups: ${groups.length})`);
-
-  const progressTimer = setInterval(() => {
-    console.log(`[Ollama/Risk] Waiting... ${((Date.now() - startTime) / 1000).toFixed(0)}s elapsed`);
-  }, 5000);
+  console.log(`[LLM/Risk] Requesting analysis (model: ${OPENAI_MODEL}, groups: ${groups.length})`);
 
   try {
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        prompt,
-        stream: false,
-        keep_alive: '10m',
-        options: {
-          temperature: 0.2,
-          num_predict: 1024,
-          num_ctx: 8192,
-        },
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
+    const response = await client.chat.completions.create({
+      model: OPENAI_MODEL,
+      messages: [
+        { role: 'system', content: 'You are a senior compensation analyst. Write clear, structured reports using markdown.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.2,
+      max_tokens: 1024,
+    }, {
+      timeout: timeoutMs,
     });
 
-    clearInterval(progressTimer);
-    console.log(`[Ollama/Risk] Response in ${((Date.now() - startTime) / 1000).toFixed(1)}s, status: ${response.status}`);
+    console.log(`[LLM/Risk] Response in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
 
-    if (!response.ok) {
-      console.error(`[Ollama/Risk] HTTP ${response.status}`);
+    const content = response.choices[0]?.message?.content;
+    if (!content || content.length < 50) {
+      console.warn('[LLM/Risk] Response too short, discarding');
       return null;
     }
 
-    const data = (await response.json()) as { response: string };
-    const summary = parseResponse(data.response);
-
-    if (!summary || summary.length < 50) {
-      console.warn('[Ollama/Risk] Response too short, discarding');
-      return null;
+    // Strip markdown fences if present
+    let summary = content.trim();
+    const fenceMatch = summary.match(/```(?:markdown)?\s*([\s\S]*?)```/);
+    if (fenceMatch) {
+      summary = fenceMatch[1].trim();
     }
 
     return {
       summary,
       generatedAt: new Date().toISOString(),
-      model: OLLAMA_MODEL,
+      model: OPENAI_MODEL,
     };
   } catch (err) {
-    clearInterval(progressTimer);
-    console.warn('[Ollama/Risk] AI analysis unavailable:', (err as Error).message);
+    console.warn('[LLM/Risk] AI analysis unavailable:', (err as Error).message);
     return null;
   }
 }
