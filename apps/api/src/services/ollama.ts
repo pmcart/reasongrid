@@ -6,7 +6,7 @@
 import OpenAI from 'openai';
 import { suggestMappings, computeMappingConfidence } from './normalization.js';
 
-const OPENAI_MODEL = process.env['OPENAI_MODEL'] || 'gpt-4o-mini';
+const OPENAI_MODEL = process.env['OPENAI_MODEL'] || 'gpt-4.1-mini';
 
 interface LLMMappingResult {
   mapping: Record<string, string | null>;

@@ -91,20 +91,62 @@ PDR must capture:
 
 **Immutability rule:** When status becomes FINALISED, record becomes read-only.
 
-### 3) Rationale Library
-A fixed, legally vetted list of objective, gender-neutral reasons.
-Users must pick from this list (multi-select allowed).
+### 3) Rationale Library (Rationale Governance)
+Rationale definitions are **database-driven, versioned, org-scoped records** stored in the `RationaleDefinition` table. They replace the original hardcoded Rationale enum.
 
-MVP rationale options (enum + display labels):
-- SENIORITY_TENURE — "Seniority / tenure"
-- RELEVANT_EXPERIENCE — "Relevant experience"
-- PERFORMANCE_HISTORY — "Performance history"
-- SCOPE_OF_ROLE — "Scope of role"
-- MARKET_CONDITIONS — "Market conditions"
-- GEOGRAPHIC_FACTORS — "Geographic factors"
-- INTERNAL_EQUITY_ALIGNMENT — "Internal equity alignment"
-- PROMOTION_HIGHER_RESPONSIBILITY — "Promotion into higher responsibility"
-- TEMPORARY_ADJUSTMENT — "Temporary adjustment"
+Users must pick from the active rationale library when creating pay decisions (multi-select allowed).
+
+**Key rules:**
+- **Versioned and immutable:** Editing a rationale definition creates a new version. The previous version gets `effectiveTo` set and is preserved for audit.
+- **Snapshot at decision time:** Each `PayDecisionRationale` stores a `rationaleSnapshot` JSON — a frozen copy of the definition text, category, and metadata at the moment the pay decision was created.
+- **Cannot delete with history:** Rationale definitions cannot be deleted if any PayDecisionRationale references them. They can be archived instead.
+- **Org-scoped:** Each organisation maintains its own rationale library.
+
+**RationaleCategory enum:** STRUCTURAL, MARKET, PERFORMANCE, TEMPORARY, OTHER
+
+**RationaleStatus enum:** ACTIVE, ARCHIVED
+
+**RationaleDefinition fields:**
+- code (UPPER_SNAKE_CASE, stable across versions)
+- name, legalDescription, plainLanguageDescription
+- category (RationaleCategory)
+- objectiveCriteriaTags (JSON string[]), applicableDecisionTypes (JSON DecisionType[])
+- jurisdictionScope (JSON string[] of ISO country codes)
+- requiresSubstantiation (boolean)
+- version (int), effectiveFrom, effectiveTo
+- status (ACTIVE/ARCHIVED)
+- Unique constraint: (organizationId, code, version)
+
+**Default rationale definitions (seeded as v1):**
+- SENIORITY_TENURE — Structural — "Seniority / tenure"
+- RELEVANT_EXPERIENCE — Structural — "Relevant experience"
+- PERFORMANCE_HISTORY — Performance — "Performance history"
+- SCOPE_OF_ROLE — Structural — "Scope of role"
+- MARKET_CONDITIONS — Market — "Market conditions"
+- GEOGRAPHIC_FACTORS — Market — "Geographic factors"
+- INTERNAL_EQUITY_ALIGNMENT — Structural — "Internal equity alignment"
+- PROMOTION_HIGHER_RESPONSIBILITY — Structural — "Promotion into higher responsibility"
+- TEMPORARY_ADJUSTMENT — Temporary — "Temporary adjustment"
+
+**API endpoints:**
+- GET /rationale-definitions — List active definitions (latest version per code). Filters: status, category
+- GET /rationale-definitions/:id — Single definition by ID
+- GET /rationale-definitions/code/:code/history — All versions for a code
+- POST /rationale-definitions — Create new definition (HR_MANAGER, ADMIN)
+- PUT /rationale-definitions/:id — Edit creates new version (HR_MANAGER, ADMIN)
+- POST /rationale-definitions/:id/archive — Archive (ADMIN only)
+- DELETE /rationale-definitions/:id — Hard delete only if zero historical usage (ADMIN only)
+
+**Frontend:**
+- Rationale Library page at `/rationale-library` (ADMIN/HR_MANAGER only)
+- Create/edit dialog with version notice
+- Version history timeline at `/rationale-library/:code/history`
+- Pay decision form fetches rationales from API, grouped by category in dropdown
+
+**Future phases (not yet implemented):**
+- Substantiation requirements engine (required data validation, conditional requirements, soft/hard enforcement)
+- Jurisdictional controls (enable/disable rationales per country, lock mode)
+- Governance monitoring dashboard (usage analytics, drift alerts)
 
 ### 4) Risk Analysis (Risk Radar)
 A background process that calculates pay gap risk in **comparator groups**.
@@ -299,6 +341,12 @@ Risk:
 - GET /risk/groups (filters: riskState, country, jobFamily, level)
 - GET /risk/groups/:groupKey (drilldown)
 
+Salary Ranges:
+- GET /salary-ranges (list all for org)
+- POST /salary-ranges (HR_MANAGER+)
+- PATCH /salary-ranges/:id (HR_MANAGER+)
+- DELETE /salary-ranges/:id (ADMIN only)
+
 Reports:
 - GET /reports/employee-snapshot/:employeeId (PDF)
 - GET /reports/pay-decision-summary (PDF; date range)
@@ -366,9 +414,125 @@ The MVP is complete when:
 
 ---
 
+## Employee Snapshots (Immutable Data History)
+
+CDI uses an **immutable snapshot model** for employee data. Instead of only maintaining a "current state" Employee record, every CSV import creates a point-in-time `EmployeeSnapshot` — an immutable copy of all employee fields at the moment of import.
+
+### Why snapshots matter
+Pay decisions are made based on the employee data available at the time. When decisions are later audited or challenged, the system must prove what data informed the decision. Snapshots provide this evidence chain.
+
+### How it works
+- **Employee table** remains the "current state" view for directory, filtering, and day-to-day use
+- **EmployeeSnapshot table** stores immutable copies, linked to the ImportJob that created them
+- Each CSV import creates one snapshot per employee row processed
+- Every pay decision creates a **fresh snapshot** at decision time (never reuses old snapshots)
+- CSV imports also create snapshots (raw employee data only, no computed context)
+
+### Key rules
+- Snapshots are **never modified** after creation
+- `importJobId` is nullable — snapshots created for pay decisions have null importJobId
+- The `snapshotAt` field records when the data was captured
+- The pay decision detail view shows "Employee Context at Decision Time" using the linked snapshot
+- If the current employee data differs from the snapshot, a drift indicator is shown
+
+### EmployeeSnapshot fields
+**Raw employee fields**: id, employeeId (FK), importJobId (FK, nullable), organizationId, employeeExternalId, roleTitle, jobFamily, level, country, location, currency, baseSalary, bonusTarget, ltiTarget, hireDate, employmentType, gender, performanceRating, snapshotAt, createdAt
+
+**Computed context fields** (populated at pay decision time, null for import-only snapshots):
+- `tenureYears` (Float?) — years since hireDate, frozen at decision time
+- `compaRatio` (Float?) — baseSalary / salary range midpoint (null if no matching range)
+- `positionInRange` (Float?) — (baseSalary - min) / (max - min) as 0-1 value (null if no matching range)
+- `comparatorGroupKey` (String?) — `country:jobFamily:level` or `country:level:roleTitle` fallback
+- `priorPromotionCount` (Int?) — count of FINALISED PROMOTION decisions at decision time
+- `lastPromotionDate` (DateTime?) — date of most recent promotion (null if none)
+- `priorIncreaseCount` (Int?) — count of FINALISED ANNUAL_INCREASE/ADJUSTMENT decisions in last 24 months
+- `priorIncreaseTotalPct` (Float?) — sum of % increases in last 24 months
+
+### Decision Context Computation
+Implemented in `apps/api/src/services/snapshot-context.ts`. Called when creating a pay decision.
+- Only FINALISED decisions count toward promotion/increase history
+- Gender is captured in the snapshot for risk modelling but not shown in manager-facing UI
+- Compa ratio requires salary range data in the SalaryRange table
+
+---
+
+## Audit Trail
+
+All significant actions are logged to an `AuditLog` table for compliance and traceability.
+
+### AuditAction enum
+- EMPLOYEE_CREATED, EMPLOYEE_UPDATED, EMPLOYEE_IMPORTED
+- PAY_DECISION_CREATED, PAY_DECISION_UPDATED, PAY_DECISION_FINALISED
+- IMPORT_STARTED, IMPORT_COMPLETED, IMPORT_FAILED
+- RISK_RUN_TRIGGERED, RISK_RUN_COMPLETED
+- USER_LOGIN
+
+### AuditLog fields
+id, organizationId, userId (nullable for system actions), action, entityType, entityId, metadata (JSON), ipAddress, createdAt
+
+### API endpoints
+- GET /audit — Paginated audit log (ADMIN/HR_MANAGER only), filterable by entityType, entityId, action, userId
+- GET /audit/entity/:entityType/:entityId — All audit entries for a specific entity
+
+### Implementation
+- Audit logging is fire-and-forget: errors are logged but never thrown to avoid disrupting the main flow
+- The `logAudit()` service function is used throughout route handlers and services
+- Draft pay decision edits log previous field values in metadata for complete edit history
+
+---
+
+## Employee Snapshot API Endpoints
+
+- GET /employees/:id/snapshots — All snapshots for an employee, ordered by snapshotAt desc
+- GET /employees/:id/snapshots/latest — Latest snapshot only
+
+---
+
+## Salary Ranges
+
+Org-scoped lookup table used to compute compa ratio and position-in-range for decision context snapshots.
+
+### SalaryRange fields
+id, organizationId, country, jobFamily (nullable), level, currency, min, mid, max, createdAt, updatedAt
+
+### Unique constraint
+`(organizationId, country, jobFamily, level)` — one range per comparator group per org.
+
+### API endpoints
+- GET /salary-ranges — List all ranges for org (any authenticated user)
+- GET /salary-ranges/:id — Single range
+- POST /salary-ranges — Create (HR_MANAGER, ADMIN)
+- PATCH /salary-ranges/:id — Update (HR_MANAGER, ADMIN)
+- DELETE /salary-ranges/:id — Delete (ADMIN only)
+
+### Validation
+- min < mid < max enforced via Zod refinement (`createSalaryRangeSchema`)
+- country: 2-char ISO, currency: 3-char ISO
+
+### How it connects
+When a pay decision is created, `computeSnapshotContext()` looks up the matching SalaryRange by (org, country, jobFamily, level). If found, compa ratio and position-in-range are computed and frozen on the snapshot. If not found, those fields are null.
+
+---
+
+## EU Pay Transparency Compliance Approach
+
+CDI supports EU Pay Transparency requirements by providing:
+
+1. **Structured, defensible pay decisions** — every decision must include objective rationale categories from a vetted library
+2. **Immutable audit trail** — finalised decisions and their associated employee data snapshots cannot be modified
+3. **Risk analysis** — automated gender pay gap detection at the comparator group level with 5% threshold alerts
+4. **Accountability tracking** — every decision records an owner and approver
+5. **Data history preservation** — snapshot-based import model ensures no data is overwritten or lost
+6. **Comprehensive audit logging** — all significant actions are timestamped and recorded
+
+**Important framing:** CDI highlights areas that may require review. It does not certify compliance or provide legal advice.
+
+---
+
 ## Implementation notes
 - Keep copy neutral and audit-safe; avoid legal advice language.
 - Treat risk as "requires review" not "non-compliant".
 - Preserve historical truth: pay decisions are timestamped and immutable once finalised.
+- Employee data uses snapshot-based model: imports create immutable snapshots, pay decisions link to snapshots.
 - Build for extensibility: HRIS connectors later, more comparator logic later (equal-value scoring).
 
