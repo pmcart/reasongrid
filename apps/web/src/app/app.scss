@@ -13,40 +13,27 @@
 
 .sidenav-brand {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 2px;
   padding: 20px 24px;
   border-bottom: 1px solid #e2e8f0;
 }
 
-.brand-mark {
+.brand-logo {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-  border-radius: 10px;
-}
-
-.brand-icon {
-  color: #ffffff !important;
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
-}
-
-.brand-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: 0.5px;
+  align-items: baseline;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   line-height: 1.2;
+}
+
+.brand-reason {
+  color: #2563eb;
+}
+
+.brand-grid {
+  color: #7c3aed;
 }
 
 .brand-tagline {

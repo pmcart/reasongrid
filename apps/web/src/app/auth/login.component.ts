@@ -23,13 +23,10 @@ import { AuthService } from '../core/auth.service';
       <div class="login-left">
         <div class="login-card-wrapper">
           <div class="brand">
-            <div class="brand-mark">
-              <mat-icon class="brand-icon">shield</mat-icon>
+            <div class="brand-logo">
+              <span class="brand-reason">Reason</span><span class="brand-grid">Grid</span>
             </div>
-            <div class="brand-info">
-              <span class="brand-name">CDI</span>
-              <span class="brand-tagline">Compensation Decision Intelligence</span>
-            </div>
+            <span class="brand-tagline">Pay Intelligence</span>
           </div>
 
           <div class="login-form-section">
@@ -113,43 +110,30 @@ import { AuthService } from '../core/auth.service';
 
     .brand {
       display: flex;
-      align-items: center;
-      gap: 12px;
+      flex-direction: column;
+      gap: 2px;
       margin-bottom: 48px;
     }
 
-    .brand-mark {
+    .brand-logo {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, #4f46e5, #6366f1);
-      border-radius: 10px;
-    }
-
-    .brand-icon {
-      color: #ffffff;
-      font-size: 22px;
-      width: 22px;
-      height: 22px;
-    }
-
-    .brand-info {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .brand-name {
-      font-size: 20px;
-      font-weight: 700;
-      color: #0f172a;
-      letter-spacing: 0.5px;
+      align-items: baseline;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
       line-height: 1.2;
     }
 
+    .brand-reason {
+      color: #2563eb;
+    }
+
+    .brand-grid {
+      color: #7c3aed;
+    }
+
     .brand-tagline {
-      font-size: 11px;
+      font-size: 12px;
       color: #94a3b8;
       font-weight: 500;
     }

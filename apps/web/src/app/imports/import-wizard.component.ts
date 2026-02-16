@@ -158,7 +158,7 @@ interface MappingRow {
 
               <table mat-table [dataSource]="mappingRows" class="mapping-table">
                 <ng-container matColumnDef="field">
-                  <th mat-header-cell *matHeaderCellDef>CDI Field</th>
+                  <th mat-header-cell *matHeaderCellDef>ReasonGrid Field</th>
                   <td mat-cell *matCellDef="let row">
                     <div class="field-label">
                       {{ row.label }}
