@@ -10,7 +10,7 @@ employeeRouter.get('/', async (req, res, next) => {
   try {
     const query = employeeListQuerySchema.parse(req.query);
     const where: Record<string, unknown> = {
-      organizationId: req.user!.organizationId,
+      organizationId: req.user!.organizationId!,
     };
     if (query.country) where['country'] = query.country;
     if (query.jobFamily) where['jobFamily'] = query.jobFamily;
@@ -38,12 +38,12 @@ employeeRouter.get('/', async (req, res, next) => {
     // Count employees with at least one pay decision (org-wide, not filtered)
     const withDecisions = await prisma.employee.count({
       where: {
-        organizationId: req.user!.organizationId,
+        organizationId: req.user!.organizationId!,
         payDecisions: { some: {} },
       },
     });
     const totalOrg = await prisma.employee.count({
-      where: { organizationId: req.user!.organizationId },
+      where: { organizationId: req.user!.organizationId! },
     });
 
     const data = employees.map((emp: any) => ({
@@ -67,7 +67,7 @@ employeeRouter.get('/', async (req, res, next) => {
 employeeRouter.get('/:id', async (req, res, next) => {
   try {
     const employee = await prisma.employee.findFirst({
-      where: { id: req.params['id'], organizationId: req.user!.organizationId },
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
     });
     if (!employee) {
       res.status(404).json({ error: 'Employee not found' });
@@ -83,7 +83,7 @@ employeeRouter.get('/:id', async (req, res, next) => {
 employeeRouter.get('/:id/snapshots', async (req, res, next) => {
   try {
     const employee = await prisma.employee.findFirst({
-      where: { id: req.params['id'], organizationId: req.user!.organizationId },
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
     });
     if (!employee) {
       res.status(404).json({ error: 'Employee not found' });
@@ -104,7 +104,7 @@ employeeRouter.get('/:id/snapshots', async (req, res, next) => {
 employeeRouter.get('/:id/snapshots/latest', async (req, res, next) => {
   try {
     const employee = await prisma.employee.findFirst({
-      where: { id: req.params['id'], organizationId: req.user!.organizationId },
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
     });
     if (!employee) {
       res.status(404).json({ error: 'Employee not found' });
@@ -128,7 +128,7 @@ employeeRouter.get('/:id/snapshots/latest', async (req, res, next) => {
 employeeRouter.patch('/:id', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), async (req, res, next) => {
   try {
     const existing = await prisma.employee.findFirst({
-      where: { id: req.params['id'], organizationId: req.user!.organizationId },
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
     });
     if (!existing) {
       res.status(404).json({ error: 'Employee not found' });

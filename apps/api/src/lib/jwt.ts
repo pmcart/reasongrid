@@ -32,7 +32,7 @@ export interface AuthTokenPayload {
   userId: string;
   email: string;
   role: string;
-  organizationId: string;
+  organizationId: string | null;
 }
 
 export function signToken(payload: AuthTokenPayload): string {

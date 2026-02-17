@@ -10,7 +10,7 @@ export const registerRequestSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   role: z.nativeEnum(UserRole).default(UserRole.VIEWER),
-  organizationId: z.string().uuid(),
+  organizationId: z.string().uuid().optional(),
 });
 
 export const authResponseSchema = z.object({
@@ -19,8 +19,8 @@ export const authResponseSchema = z.object({
     id: z.string(),
     email: z.string(),
     role: z.nativeEnum(UserRole),
-    organizationId: z.string(),
-    organizationName: z.string(),
+    organizationId: z.string().nullable(),
+    organizationName: z.string().nullable(),
   }),
 });
 

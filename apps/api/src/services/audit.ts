@@ -8,7 +8,7 @@ import { prisma } from '../lib/prisma.js';
 import type { AuditAction } from '@prisma/client';
 
 export interface AuditLogParams {
-  organizationId: string;
+  organizationId: string | null;
   userId?: string | null;
   action: AuditAction;
   entityType: string;

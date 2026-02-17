@@ -76,7 +76,7 @@ function makeRationaleSnapshot(def: {
 payDecisionRouter.get('/employee/:employeeId', async (req, res, next) => {
   try {
     const employee = await prisma.employee.findFirst({
-      where: { id: req.params['employeeId'], organizationId: req.user!.organizationId },
+      where: { id: req.params['employeeId'], organizationId: req.user!.organizationId! },
     });
     if (!employee) {
       res.status(404).json({ error: 'Employee not found' });
@@ -106,7 +106,7 @@ payDecisionRouter.post(
   async (req, res, next) => {
     try {
       const employee = await prisma.employee.findFirst({
-        where: { id: req.params['employeeId'], organizationId: req.user!.organizationId },
+        where: { id: req.params['employeeId'], organizationId: req.user!.organizationId! },
       });
       if (!employee) {
         res.status(404).json({ error: 'Employee not found' });
@@ -119,13 +119,13 @@ payDecisionRouter.post(
       // Resolve and validate rationale definitions
       const definitions = await resolveRationales(
         rationaleSelections,
-        req.user!.organizationId,
+        req.user!.organizationId!,
       );
 
       // Always create a fresh snapshot with computed decision context
       const context = await computeSnapshotContext({
         employeeId: employee.id,
-        organizationId: req.user!.organizationId,
+        organizationId: req.user!.organizationId!,
         employee: {
           country: employee.country,
           jobFamily: employee.jobFamily,
@@ -140,7 +140,7 @@ payDecisionRouter.post(
       const snapshot = await prisma.employeeSnapshot.create({
         data: {
           employeeId: employee.id,
-          organizationId: req.user!.organizationId,
+          organizationId: req.user!.organizationId!,
           employeeExternalId: employee.employeeId,
           roleTitle: employee.roleTitle,
           jobFamily: employee.jobFamily,
@@ -189,7 +189,7 @@ payDecisionRouter.post(
       });
 
       logAudit({
-        organizationId: req.user!.organizationId,
+        organizationId: req.user!.organizationId!,
         userId: req.user!.userId,
         action: 'PAY_DECISION_CREATED',
         entityType: 'PayDecision',
@@ -221,7 +221,7 @@ payDecisionRouter.get('/:id', async (req, res, next) => {
         approver: { select: { id: true, email: true, role: true } },
       },
     });
-    if (!decision || decision.employee.organizationId !== req.user!.organizationId) {
+    if (!decision || decision.employee.organizationId !== req.user!.organizationId!) {
       res.status(404).json({ error: 'Pay decision not found' });
       return;
     }
@@ -241,7 +241,7 @@ payDecisionRouter.patch(
         where: { id: req.params['id'] },
         include: { employee: true },
       });
-      if (!existing || existing.employee.organizationId !== req.user!.organizationId) {
+      if (!existing || existing.employee.organizationId !== req.user!.organizationId!) {
         res.status(404).json({ error: 'Pay decision not found' });
         return;
       }
@@ -257,7 +257,7 @@ payDecisionRouter.patch(
       if (rationaleSelections) {
         const definitions = await resolveRationales(
           rationaleSelections,
-          req.user!.organizationId,
+          req.user!.organizationId!,
         );
         await prisma.payDecisionRationale.deleteMany({ where: { payDecisionId: existing.id } });
         updateData['rationales'] = {
@@ -280,7 +280,7 @@ payDecisionRouter.patch(
       });
 
       logAudit({
-        organizationId: req.user!.organizationId,
+        organizationId: req.user!.organizationId!,
         userId: req.user!.userId,
         action: 'PAY_DECISION_UPDATED',
         entityType: 'PayDecision',
@@ -309,7 +309,7 @@ payDecisionRouter.post(
         where: { id: req.params['id'] },
         include: { employee: true },
       });
-      if (!existing || existing.employee.organizationId !== req.user!.organizationId) {
+      if (!existing || existing.employee.organizationId !== req.user!.organizationId!) {
         res.status(404).json({ error: 'Pay decision not found' });
         return;
       }
@@ -330,7 +330,7 @@ payDecisionRouter.post(
       });
 
       logAudit({
-        organizationId: req.user!.organizationId,
+        organizationId: req.user!.organizationId!,
         userId: req.user!.userId,
         action: 'PAY_DECISION_FINALISED',
         entityType: 'PayDecision',
@@ -339,7 +339,7 @@ payDecisionRouter.post(
       });
 
       // Trigger risk re-computation after finalisation (fire-and-forget)
-      runRiskComputation(req.user!.organizationId, req.user!.userId).catch((err) =>
+      runRiskComputation(req.user!.organizationId!, req.user!.userId).catch((err) =>
         console.error('Risk computation after finalisation failed:', err),
       );
 

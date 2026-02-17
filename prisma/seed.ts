@@ -108,6 +108,23 @@ const DEFAULT_RATIONALE_DEFINITIONS = [
 async function main() {
   console.log('Seeding database...');
 
+  // Create super admin user (no organization)
+  const superAdminEmail = process.env['SUPER_ADMIN_EMAIL'] || 'superadmin@cdi.local';
+  const superAdminPassword = process.env['SUPER_ADMIN_PASSWORD'] || 'SuperAdmin123!';
+  const superAdminHash = await bcrypt.hash(superAdminPassword, 12);
+
+  const superAdmin = await prisma.user.upsert({
+    where: { email: superAdminEmail },
+    update: {},
+    create: {
+      email: superAdminEmail,
+      passwordHash: superAdminHash,
+      role: UserRole.SUPER_ADMIN,
+      organizationId: null,
+    },
+  });
+  console.log(`Super Admin user: ${superAdmin.email} (${superAdmin.id})`);
+
   // Create default organization
   const org = await prisma.organization.upsert({
     where: { slug: 'default' },

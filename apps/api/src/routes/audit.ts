@@ -12,7 +12,7 @@ auditRouter.get('/', async (req, res, next) => {
   try {
     const query = auditLogQuerySchema.parse(req.query);
     const where: Record<string, unknown> = {
-      organizationId: req.user!.organizationId,
+      organizationId: req.user!.organizationId!,
     };
     if (query.entityType) where['entityType'] = query.entityType;
     if (query.entityId) where['entityId'] = query.entityId;
@@ -40,7 +40,7 @@ auditRouter.get('/entity/:entityType/:entityId', async (req, res, next) => {
   try {
     const entries = await prisma.auditLog.findMany({
       where: {
-        organizationId: req.user!.organizationId,
+        organizationId: req.user!.organizationId!,
         entityType: req.params['entityType'],
         entityId: req.params['entityId'],
       },

@@ -1,15 +1,39 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
+import { superAdminGuard, regularUserGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('./auth/login.component').then((m) => m.LoginComponent),
   },
+  // Super admin routes
+  {
+    path: 'admin',
+    canActivate: [superAdminGuard],
+    children: [
+      {
+        path: 'organizations',
+        loadComponent: () =>
+          import('./admin/organizations-list.component').then((m) => m.OrganizationsListComponent),
+      },
+      {
+        path: 'organizations/:id/users',
+        loadComponent: () =>
+          import('./admin/organization-users.component').then((m) => m.OrganizationUsersComponent),
+      },
+      { path: '', redirectTo: 'organizations', pathMatch: 'full' },
+    ],
+  },
+  // Regular org-scoped routes
   {
     path: '',
-    canActivate: [authGuard],
+    canActivate: [regularUserGuard],
     children: [
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./dashboard/dashboard.component').then((m) => m.DashboardComponent),
+      },
       {
         path: 'employees',
         loadComponent: () =>
@@ -64,7 +88,7 @@ export const routes: Routes = [
             (m) => m.RationaleVersionHistoryComponent,
           ),
       },
-      { path: '', redirectTo: 'employees', pathMatch: 'full' },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },
 ];

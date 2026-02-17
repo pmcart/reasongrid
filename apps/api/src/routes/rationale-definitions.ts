@@ -16,7 +16,7 @@ rationaleDefinitionRouter.use(authenticate);
 // Query params: status (ACTIVE|ARCHIVED), category, includeAllVersions (true|false)
 rationaleDefinitionRouter.get('/', async (req, res, next) => {
   try {
-    const orgId = req.user!.organizationId;
+    const orgId = req.user!.organizationId!;
     const {
       status = 'ACTIVE',
       category,
@@ -64,7 +64,7 @@ rationaleDefinitionRouter.get('/', async (req, res, next) => {
 rationaleDefinitionRouter.get('/:id', async (req, res, next) => {
   try {
     const def = await prisma.rationaleDefinition.findFirst({
-      where: { id: req.params['id'], organizationId: req.user!.organizationId },
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
     });
     if (!def) {
       res.status(404).json({ error: 'Rationale definition not found' });
@@ -81,7 +81,7 @@ rationaleDefinitionRouter.get('/code/:code/history', async (req, res, next) => {
   try {
     const versions = await prisma.rationaleDefinition.findMany({
       where: {
-        organizationId: req.user!.organizationId,
+        organizationId: req.user!.organizationId!,
         code: req.params['code'],
       },
       orderBy: { version: 'desc' },
@@ -102,7 +102,7 @@ rationaleDefinitionRouter.post(
   authorize(UserRole.ADMIN, UserRole.HR_MANAGER),
   async (req, res, next) => {
     try {
-      const orgId = req.user!.organizationId;
+      const orgId = req.user!.organizationId!;
       const body = createRationaleDefinitionSchema.parse(req.body);
 
       // Check code uniqueness within org
@@ -155,7 +155,7 @@ rationaleDefinitionRouter.put(
   authorize(UserRole.ADMIN, UserRole.HR_MANAGER),
   async (req, res, next) => {
     try {
-      const orgId = req.user!.organizationId;
+      const orgId = req.user!.organizationId!;
       const existing = await prisma.rationaleDefinition.findFirst({
         where: { id: req.params['id'], organizationId: orgId },
       });
@@ -246,7 +246,7 @@ rationaleDefinitionRouter.post(
   authorize(UserRole.ADMIN),
   async (req, res, next) => {
     try {
-      const orgId = req.user!.organizationId;
+      const orgId = req.user!.organizationId!;
       const existing = await prisma.rationaleDefinition.findFirst({
         where: { id: req.params['id'], organizationId: orgId },
       });
@@ -290,7 +290,7 @@ rationaleDefinitionRouter.delete(
   authorize(UserRole.ADMIN),
   async (req, res, next) => {
     try {
-      const orgId = req.user!.organizationId;
+      const orgId = req.user!.organizationId!;
       const existing = await prisma.rationaleDefinition.findFirst({
         where: { id: req.params['id'], organizationId: orgId },
       });

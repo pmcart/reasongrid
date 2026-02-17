@@ -11,3 +11,29 @@ export const authGuard: CanActivateFn = () => {
   }
   return router.createUrlTree(['/login']);
 };
+
+export const superAdminGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (auth.isAuthenticated() && auth.isSuperAdmin()) {
+    return true;
+  }
+  if (auth.isAuthenticated()) {
+    return router.createUrlTree(['/employees']);
+  }
+  return router.createUrlTree(['/login']);
+};
+
+export const regularUserGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (auth.isAuthenticated() && !auth.isSuperAdmin()) {
+    return true;
+  }
+  if (auth.isSuperAdmin()) {
+    return router.createUrlTree(['/admin']);
+  }
+  return router.createUrlTree(['/login']);
+};

@@ -8,37 +8,51 @@
         <span class="brand-tagline">Pay Intelligence</span>
       </div>
 
-      <div class="nav-section-label">Main</div>
-      <mat-nav-list>
-        <a mat-list-item routerLink="/employees" routerLinkActive="active-link">
-          <mat-icon matListItemIcon>people</mat-icon>
-          <span>Employees</span>
-        </a>
-        <a mat-list-item routerLink="/imports" routerLinkActive="active-link">
-          <mat-icon matListItemIcon>upload_file</mat-icon>
-          <span>Imports</span>
-        </a>
-        @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
-          <a mat-list-item routerLink="/rationale-library" routerLinkActive="active-link">
-            <mat-icon matListItemIcon>menu_book</mat-icon>
-            <span>Rationale Library</span>
+      @if (auth.isSuperAdmin()) {
+        <div class="nav-section-label">System Administration</div>
+        <mat-nav-list>
+          <a mat-list-item routerLink="/admin/organizations" routerLinkActive="active-link">
+            <mat-icon matListItemIcon>business</mat-icon>
+            <span>Organizations</span>
           </a>
-        }
-      </mat-nav-list>
+        </mat-nav-list>
+      } @else {
+        <div class="nav-section-label">Main</div>
+        <mat-nav-list>
+          <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link">
+            <mat-icon matListItemIcon>dashboard</mat-icon>
+            <span>Dashboard</span>
+          </a>
+          <a mat-list-item routerLink="/employees" routerLinkActive="active-link">
+            <mat-icon matListItemIcon>people</mat-icon>
+            <span>Employees</span>
+          </a>
+          <a mat-list-item routerLink="/imports" routerLinkActive="active-link">
+            <mat-icon matListItemIcon>upload_file</mat-icon>
+            <span>Imports</span>
+          </a>
+          @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
+            <a mat-list-item routerLink="/rationale-library" routerLinkActive="active-link">
+              <mat-icon matListItemIcon>menu_book</mat-icon>
+              <span>Rationale Library</span>
+            </a>
+          }
+        </mat-nav-list>
 
-      <div class="nav-section-label">Analytics</div>
-      <mat-nav-list>
-        <a mat-list-item routerLink="/risk" routerLinkActive="active-link">
-          <mat-icon matListItemIcon>monitoring</mat-icon>
-          <span>Risk Radar</span>
-        </a>
-        @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
-          <a mat-list-item routerLink="/audit" routerLinkActive="active-link">
-            <mat-icon matListItemIcon>history</mat-icon>
-            <span>Audit Log</span>
+        <div class="nav-section-label">Analytics</div>
+        <mat-nav-list>
+          <a mat-list-item routerLink="/risk" routerLinkActive="active-link">
+            <mat-icon matListItemIcon>monitoring</mat-icon>
+            <span>Risk Radar</span>
           </a>
-        }
-      </mat-nav-list>
+          @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
+            <a mat-list-item routerLink="/audit" routerLinkActive="active-link">
+              <mat-icon matListItemIcon>history</mat-icon>
+              <span>Audit Log</span>
+            </a>
+          }
+        </mat-nav-list>
+      }
 
       <div class="sidenav-footer">
         <div class="user-card">
@@ -56,7 +70,11 @@
 
     <mat-sidenav-content>
       <mat-toolbar>
-        <span class="org-name">{{ auth.user()?.organizationName }}</span>
+        @if (auth.isSuperAdmin()) {
+          <span class="org-name">System Administration</span>
+        } @else {
+          <span class="org-name">{{ auth.user()?.organizationName }}</span>
+        }
         <span class="spacer"></span>
       </mat-toolbar>
       <div class="main-content">

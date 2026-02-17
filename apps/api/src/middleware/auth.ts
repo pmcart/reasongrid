@@ -6,7 +6,7 @@ export interface AuthPayload {
   userId: string;
   email: string;
   role: UserRole;
-  organizationId: string;
+  organizationId: string | null;
 }
 
 declare global {
@@ -42,4 +42,20 @@ export function authorize(...roles: UserRole[]) {
     }
     next();
   };
+}
+
+export function superAdminOnly(req: Request, res: Response, next: NextFunction) {
+  if (!req.user || req.user.role !== UserRole.SUPER_ADMIN) {
+    res.status(403).json({ error: 'Super admin access required' });
+    return;
+  }
+  next();
+}
+
+export function requireOrgScope(req: Request, res: Response, next: NextFunction) {
+  if (!req.user?.organizationId) {
+    res.status(403).json({ error: 'Organization-scoped access required' });
+    return;
+  }
+  next();
 }

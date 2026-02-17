@@ -48,7 +48,7 @@ importRouter.post('/employees/csv', upload.single('file'), async (req, res, next
     const importJob = await prisma.importJob.create({
       data: {
         uploadedByUserId: req.user!.userId,
-        organizationId: req.user!.organizationId,
+        organizationId: req.user!.organizationId!,
         status: 'PENDING_MAPPING',
         filePath: req.file.path,
       },
@@ -75,7 +75,7 @@ importRouter.post('/employees/csv', upload.single('file'), async (req, res, next
 importRouter.post('/:importId/preview', async (req, res, next) => {
   try {
     const importJob = await prisma.importJob.findFirst({
-      where: { id: req.params['importId'], organizationId: req.user!.organizationId },
+      where: { id: req.params['importId'], organizationId: req.user!.organizationId! },
     });
 
     if (!importJob) {
@@ -105,7 +105,7 @@ importRouter.post('/:importId/preview', async (req, res, next) => {
 importRouter.post('/:importId/confirm-mapping', async (req, res, next) => {
   try {
     const importJob = await prisma.importJob.findFirst({
-      where: { id: req.params['importId'], organizationId: req.user!.organizationId },
+      where: { id: req.params['importId'], organizationId: req.user!.organizationId! },
     });
 
     if (!importJob) {
@@ -134,7 +134,7 @@ importRouter.post('/:importId/confirm-mapping', async (req, res, next) => {
     });
 
     // Process CSV in background (don't block the response)
-    processImport(importJob.id, mapping, req.user!.organizationId).catch((err) => {
+    processImport(importJob.id, mapping, req.user!.organizationId!).catch((err) => {
       console.error(`Background import processing failed for ${importJob.id}:`, err);
     });
 
@@ -148,7 +148,7 @@ importRouter.post('/:importId/confirm-mapping', async (req, res, next) => {
 importRouter.get('/', async (req, res, next) => {
   try {
     const imports = await prisma.importJob.findMany({
-      where: { organizationId: req.user!.organizationId },
+      where: { organizationId: req.user!.organizationId! },
       orderBy: { createdAt: 'desc' },
     });
     res.json(imports);
@@ -161,7 +161,7 @@ importRouter.get('/', async (req, res, next) => {
 importRouter.get('/:id', async (req, res, next) => {
   try {
     const importJob = await prisma.importJob.findFirst({
-      where: { id: req.params['id'], organizationId: req.user!.organizationId },
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
     });
     if (!importJob) {
       res.status(404).json({ error: 'Import job not found' });

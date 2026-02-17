@@ -253,7 +253,11 @@ export class LoginComponent {
     this.auth.login(this.email, this.password).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigate(['/']);
+        if (this.auth.isSuperAdmin()) {
+          this.router.navigate(['/admin']);
+        } else {
+          this.router.navigate(['/']);
+        }
       },
       error: (err: HttpErrorResponse) => {
         this.loading = false;

@@ -8,8 +8,8 @@ interface AuthUser {
   id: string;
   email: string;
   role: string;
-  organizationId: string;
-  organizationName: string;
+  organizationId: string | null;
+  organizationName: string | null;
 }
 
 interface AuthResponse {
@@ -25,6 +25,7 @@ export class AuthService {
   private currentUser = signal<AuthUser | null>(this.loadUser());
   user = this.currentUser.asReadonly();
   isAuthenticated = computed(() => !!this.currentUser());
+  isSuperAdmin = computed(() => this.currentUser()?.role === 'SUPER_ADMIN');
 
   constructor(private http: HttpClient, private router: Router) {}
 

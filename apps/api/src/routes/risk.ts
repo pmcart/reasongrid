@@ -12,7 +12,7 @@ riskRouter.use(authenticate);
 riskRouter.post('/run', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), async (req, res, next) => {
   try {
     // Await run creation, computation runs in background
-    const riskRunId = await startRiskComputation(req.user!.organizationId, req.user!.userId);
+    const riskRunId = await startRiskComputation(req.user!.organizationId!, req.user!.userId);
     res.status(202).json({ riskRunId, status: 'RUNNING' });
   } catch (err) {
     next(err);
@@ -23,7 +23,7 @@ riskRouter.post('/run', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), async (r
 riskRouter.get('/runs/:id', async (req, res, next) => {
   try {
     const run = await prisma.riskRun.findFirst({
-      where: { id: req.params['id'], organizationId: req.user!.organizationId },
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
       include: {
         importJob: { select: { id: true, createdAt: true, createdCount: true, updatedCount: true } },
       },
@@ -46,7 +46,7 @@ riskRouter.get('/runs/:id', async (req, res, next) => {
 riskRouter.get('/latest', async (req, res, next) => {
   try {
     const latestRun = await prisma.riskRun.findFirst({
-      where: { organizationId: req.user!.organizationId },
+      where: { organizationId: req.user!.organizationId! },
       orderBy: { startedAt: 'desc' },
       include: {
         importJob: { select: { id: true, createdAt: true, createdCount: true, updatedCount: true } },
@@ -71,7 +71,7 @@ riskRouter.get('/groups', async (req, res, next) => {
   try {
     const query = riskGroupQuerySchema.parse(req.query);
     const latestRun = await prisma.riskRun.findFirst({
-      where: { status: 'COMPLETED', organizationId: req.user!.organizationId },
+      where: { status: 'COMPLETED', organizationId: req.user!.organizationId! },
       orderBy: { finishedAt: 'desc' },
     });
     if (!latestRun) {
@@ -96,7 +96,7 @@ riskRouter.get('/groups', async (req, res, next) => {
 riskRouter.get('/groups/:groupKey', async (req, res, next) => {
   try {
     const latestRun = await prisma.riskRun.findFirst({
-      where: { status: 'COMPLETED', organizationId: req.user!.organizationId },
+      where: { status: 'COMPLETED', organizationId: req.user!.organizationId! },
       orderBy: { finishedAt: 'desc' },
     });
     if (!latestRun) {
@@ -114,7 +114,7 @@ riskRouter.get('/groups/:groupKey', async (req, res, next) => {
 
     // Build employee filter matching the comparator group
     const employeeWhere: Record<string, unknown> = {
-      organizationId: req.user!.organizationId,
+      organizationId: req.user!.organizationId!,
       country: group.country,
       level: group.level,
     };
@@ -175,7 +175,7 @@ riskRouter.get('/groups/:groupKey', async (req, res, next) => {
 riskRouter.get('/reports', async (req, res, next) => {
   try {
     const reports = await prisma.aiRiskReport.findMany({
-      where: { organizationId: req.user!.organizationId },
+      where: { organizationId: req.user!.organizationId! },
       orderBy: { generatedAt: 'desc' },
       include: {
         riskRun: {
@@ -200,7 +200,7 @@ riskRouter.get('/reports', async (req, res, next) => {
 riskRouter.get('/reports/:id', async (req, res, next) => {
   try {
     const report = await prisma.aiRiskReport.findFirst({
-      where: { id: req.params['id'], organizationId: req.user!.organizationId },
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
       include: {
         riskRun: {
           select: {
@@ -228,7 +228,7 @@ riskRouter.get('/reports/:id', async (req, res, next) => {
 riskRouter.post('/analyze', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), async (req, res, next) => {
   try {
     const latestRun = await prisma.riskRun.findFirst({
-      where: { status: 'COMPLETED', organizationId: req.user!.organizationId },
+      where: { status: 'COMPLETED', organizationId: req.user!.organizationId! },
       orderBy: { finishedAt: 'desc' },
       include: {
         importJob: { select: { id: true, createdAt: true, createdCount: true, updatedCount: true } },
@@ -249,7 +249,7 @@ riskRouter.post('/analyze', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), asyn
 
     // Get org name for context
     const org = await prisma.organization.findUnique({
-      where: { id: req.user!.organizationId },
+      where: { id: req.user!.organizationId! },
       select: { name: true },
     });
 
@@ -263,7 +263,7 @@ riskRouter.post('/analyze', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), asyn
     const saved = await prisma.aiRiskReport.create({
       data: {
         riskRunId: latestRun.id,
-        organizationId: req.user!.organizationId,
+        organizationId: req.user!.organizationId!,
         summary: report.summary,
         model: report.model,
       },

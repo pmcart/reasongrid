@@ -27,6 +27,7 @@ model Organization {
 // --- Auth ---
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   HR_MANAGER
   MANAGER
@@ -38,11 +39,11 @@ model User {
   email          String       @unique
   passwordHash   String
   role           UserRole     @default(VIEWER)
-  organizationId String
+  organizationId String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  organization      Organization  @relation(fields: [organizationId], references: [id])
+  organization      Organization?  @relation(fields: [organizationId], references: [id])
   importJobs        ImportJob[]
   ownedDecisions    PayDecision[] @relation("DecisionOwner")
   approvedDecisions PayDecision[] @relation("DecisionApprover")
@@ -365,7 +366,7 @@ enum AuditAction {
 
 model AuditLog {
   id             String      @id @default(uuid())
-  organizationId String
+  organizationId String?
   userId         String?
   action         AuditAction
   entityType     String

@@ -10,7 +10,7 @@ salaryRangeRouter.use(authenticate);
 salaryRangeRouter.get('/', async (req, res, next) => {
   try {
     const ranges = await prisma.salaryRange.findMany({
-      where: { organizationId: req.user!.organizationId },
+      where: { organizationId: req.user!.organizationId! },
       orderBy: [{ country: 'asc' }, { jobFamily: 'asc' }, { level: 'asc' }],
     });
     res.json(ranges);
@@ -23,7 +23,7 @@ salaryRangeRouter.get('/', async (req, res, next) => {
 salaryRangeRouter.get('/:id', async (req, res, next) => {
   try {
     const range = await prisma.salaryRange.findFirst({
-      where: { id: req.params['id'], organizationId: req.user!.organizationId },
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
     });
     if (!range) {
       res.status(404).json({ error: 'Salary range not found' });
@@ -45,7 +45,7 @@ salaryRangeRouter.post(
       const range = await prisma.salaryRange.create({
         data: {
           ...body,
-          organizationId: req.user!.organizationId,
+          organizationId: req.user!.organizationId!,
         },
       });
       res.status(201).json(range);
@@ -62,7 +62,7 @@ salaryRangeRouter.patch(
   async (req, res, next) => {
     try {
       const existing = await prisma.salaryRange.findFirst({
-        where: { id: req.params['id'], organizationId: req.user!.organizationId },
+        where: { id: req.params['id'], organizationId: req.user!.organizationId! },
       });
       if (!existing) {
         res.status(404).json({ error: 'Salary range not found' });
@@ -88,7 +88,7 @@ salaryRangeRouter.delete(
   async (req, res, next) => {
     try {
       const existing = await prisma.salaryRange.findFirst({
-        where: { id: req.params['id'], organizationId: req.user!.organizationId },
+        where: { id: req.params['id'], organizationId: req.user!.organizationId! },
       });
       if (!existing) {
         res.status(404).json({ error: 'Salary range not found' });

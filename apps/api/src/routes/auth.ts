@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { loginRequestSchema, registerRequestSchema, UserRole } from '@cdi/shared';
 import { prisma } from '../lib/prisma.js';
 import { signToken } from '../lib/jwt.js';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { authenticate, authorize, requireOrgScope } from '../middleware/auth.js';
 import { logAudit } from '../services/audit.js';
 
 export const authRouter = Router();
@@ -43,7 +43,7 @@ authRouter.post('/login', async (req, res, next) => {
         email: user.email,
         role: user.role,
         organizationId: user.organizationId,
-        organizationName: user.organization.name,
+        organizationName: user.organization?.name ?? null,
       },
     });
   } catch (err) {
@@ -52,10 +52,10 @@ authRouter.post('/login', async (req, res, next) => {
 });
 
 // Get users in the same organization (for owner/approver selection)
-authRouter.get('/users', authenticate, async (req, res, next) => {
+authRouter.get('/users', authenticate, requireOrgScope, async (req, res, next) => {
   try {
     const users = await prisma.user.findMany({
-      where: { organizationId: req.user!.organizationId },
+      where: { organizationId: req.user!.organizationId! },
       select: { id: true, email: true, role: true },
       orderBy: { email: 'asc' },
     });
@@ -65,7 +65,7 @@ authRouter.get('/users', authenticate, async (req, res, next) => {
   }
 });
 
-authRouter.post('/register', authenticate, authorize(UserRole.ADMIN), async (req, res, next) => {
+authRouter.post('/register', authenticate, authorize(UserRole.SUPER_ADMIN, UserRole.ADMIN), async (req, res, next) => {
   try {
     const body = registerRequestSchema.parse(req.body);
     const passwordHash = await bcrypt.hash(body.password, 12);
