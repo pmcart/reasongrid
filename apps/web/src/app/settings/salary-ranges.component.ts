@@ -12,6 +12,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SalaryRangeService, SalaryRange, EmployeeGroup } from '../core/salary-range.service';
 import { SalaryRangeDialogComponent } from './salary-range-dialog.component';
+import { UncoveredGroupsDialogComponent } from './uncovered-groups-dialog.component';
 import { AuthService } from '../core/auth.service';
 
 @Component({
@@ -81,7 +82,7 @@ import { AuthService } from '../core/auth.service';
               <span><strong>{{ uncoveredGroups.length }}</strong> employee group{{ uncoveredGroups.length !== 1 ? 's' : '' }} without salary ranges</span>
             </div>
             <div class="uncovered-chips">
-              @for (g of uncoveredGroups; track g.country + g.jobFamily + g.level) {
+              @for (g of uncoveredGroups.slice(0, 20); track g.country + g.jobFamily + g.level) {
                 <button class="uncovered-chip" (click)="openDialogForGroup(g)" matTooltip="Click to create range">
                   <span class="chip-country">{{ g.country }}</span>
                   <span class="chip-detail">{{ g.jobFamily || '(no family)' }} / {{ g.level }}</span>
@@ -89,6 +90,12 @@ import { AuthService } from '../core/auth.service';
                   @if (canEdit) {
                     <mat-icon class="chip-add">add_circle</mat-icon>
                   }
+                </button>
+              }
+              @if (uncoveredGroups.length > 20) {
+                <button class="show-all-btn" (click)="openUncoveredModal()">
+                  Show all {{ uncoveredGroups.length }} groups
+                  <mat-icon>open_in_new</mat-icon>
                 </button>
               }
             </div>
@@ -362,6 +369,31 @@ import { AuthService } from '../core/auth.service';
       color: #16a34a;
     }
 
+    .show-all-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 14px;
+      background: #f59e0b;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: white;
+      transition: background 0.15s;
+
+      &:hover {
+        background: #d97706;
+      }
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+    }
+
     .disclaimer {
       display: flex;
       align-items: flex-start;
@@ -437,6 +469,20 @@ export class SalaryRangesComponent implements OnInit {
       if (this.filterJobFamily && (r.jobFamily || '') !== this.filterJobFamily) return false;
       if (this.filterLevel && r.level !== this.filterLevel) return false;
       return true;
+    });
+  }
+
+  openUncoveredModal() {
+    const dialogRef = this.dialog.open(UncoveredGroupsDialogComponent, {
+      width: '700px',
+      maxHeight: '80vh',
+      data: { groups: this.uncoveredGroups, canEdit: this.canEdit },
+    });
+
+    dialogRef.afterClosed().subscribe((group: EmployeeGroup | null) => {
+      if (group) {
+        this.openDialogForGroup(group);
+      }
     });
   }
 
