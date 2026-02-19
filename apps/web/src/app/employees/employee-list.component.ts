@@ -114,6 +114,16 @@ interface EmployeeListResponse {
             </td>
           </ng-container>
 
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let emp">
+              <a mat-button color="primary" [routerLink]="['/employees', emp.id]" (click)="$event.stopPropagation()">
+                <mat-icon>visibility</mat-icon>
+                View
+              </a>
+            </td>
+          </ng-container>
+
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayedColumns;"
               [routerLink]="['/employees', row.id]" class="clickable-row"></tr>
@@ -266,7 +276,7 @@ export class EmployeeListComponent implements OnInit {
   searchQuery = '';
   loading = false;
   coverage: { withDecisions: number; totalEmployees: number } | null = null;
-  displayedColumns = ['employeeId', 'roleTitle', 'level', 'country', 'baseSalary', 'decisions'];
+  displayedColumns = ['employeeId', 'roleTitle', 'level', 'country', 'baseSalary', 'decisions', 'actions'];
 
   constructor(private api: ApiService, private cdr: ChangeDetectorRef) {}
 

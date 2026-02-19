@@ -8,6 +8,7 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from './core/auth.service';
+import { NotificationBellComponent } from './shared/notification-bell.component';
 
 @Component({
   selector: 'app-root',
@@ -15,6 +16,7 @@ import { AuthService } from './core/auth.service';
   imports: [
     CommonModule, RouterOutlet, RouterModule,
     MatToolbarModule, MatButtonModule, MatIconModule, MatSidenavModule, MatListModule, MatTooltipModule,
+    NotificationBellComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

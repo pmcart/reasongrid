@@ -22,6 +22,7 @@ model Organization {
   riskRuns              RiskRun[]
   rationaleDefinitions  RationaleDefinition[]
   aiRiskReports         AiRiskReport[]
+  policyRules           PolicyRule[]
 }
 
 // --- Auth ---
@@ -92,6 +93,9 @@ enum DecisionType {
 
 enum DecisionStatus {
   DRAFT
+  PENDING_REVIEW
+  APPROVED
+  RETURNED
   FINALISED
 }
 
@@ -112,6 +116,10 @@ model PayDecision {
   accountableOwnerUserId String
   approverUserId         String
   finalisedAt            DateTime?
+  evaluationSnapshot     Json?
+  returnReason           String?
+  submittedAt            DateTime?
+  approvedAt             DateTime?
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
 
@@ -344,6 +352,62 @@ model SalaryRange {
   @@index([organizationId])
 }
 
+// --- Policy Engine ---
+
+enum CheckType {
+  GENDER_GAP_IMPACT
+  SALARY_RANGE_COMPLIANCE
+  MEDIAN_DEVIATION
+  HISTORICAL_CONSISTENCY
+  CHANGE_MAGNITUDE
+}
+
+enum PolicySeverity {
+  INFO
+  WARNING
+  BLOCK
+}
+
+model PolicyRule {
+  id                    String          @id @default(uuid())
+  organizationId        String
+  checkType             CheckType
+  enabled               Boolean         @default(true)
+  params                Json
+  severity              PolicySeverity  @default(WARNING)
+  appliesToDecisionTypes Json           @default("[]")
+  appliesToCountries     Json           @default("[]")
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, checkType])
+  @@index([organizationId])
+}
+
+// --- Notifications ---
+
+enum NotificationType {
+  DECISION_SUBMITTED_FOR_REVIEW
+  DECISION_APPROVED
+  DECISION_RETURNED
+}
+
+model Notification {
+  id              String           @id @default(uuid())
+  recipientUserId String
+  type            NotificationType
+  entityType      String
+  entityId        String
+  message         String
+  read            Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+
+  @@index([recipientUserId, read])
+  @@index([recipientUserId, createdAt])
+}
+
 // --- Audit Log ---
 
 enum AuditAction {
@@ -353,6 +417,9 @@ enum AuditAction {
   PAY_DECISION_CREATED
   PAY_DECISION_UPDATED
   PAY_DECISION_FINALISED
+  PAY_DECISION_SUBMITTED
+  PAY_DECISION_APPROVED
+  PAY_DECISION_RETURNED
   IMPORT_STARTED
   IMPORT_COMPLETED
   IMPORT_FAILED

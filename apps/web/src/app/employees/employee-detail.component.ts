@@ -222,8 +222,8 @@ import { FinaliseConfirmDialogComponent } from '../pay-decisions/finalise-confir
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef>Status</th>
               <td mat-cell *matCellDef="let d">
-                <span class="status-badge" [class]="'status-badge status-' + d.status.toLowerCase()">
-                  {{ d.status }}
+                <span class="status-badge" [class]="getStatusClass(d.status)">
+                  {{ formatStatus(d.status) }}
                 </span>
               </td>
             </ng-container>
@@ -233,15 +233,15 @@ import { FinaliseConfirmDialogComponent } from '../pay-decisions/finalise-confir
                 <button mat-icon-button matTooltip="View details" (click)="viewDecision(d); $event.stopPropagation()">
                   <mat-icon>visibility</mat-icon>
                 </button>
-                @if (d.status === 'DRAFT') {
-                  <button mat-icon-button matTooltip="Edit draft" (click)="editDecision(d); $event.stopPropagation()">
+                @if (d.status === 'DRAFT' || d.status === 'RETURNED') {
+                  <button mat-icon-button matTooltip="Edit" (click)="editDecision(d); $event.stopPropagation()">
                     <mat-icon>edit</mat-icon>
                   </button>
-                  @if (canFinalise) {
-                    <button mat-icon-button matTooltip="Finalise" (click)="finaliseDecision(d); $event.stopPropagation()">
-                      <mat-icon>lock</mat-icon>
-                    </button>
-                  }
+                }
+                @if (d.status === 'PENDING_REVIEW') {
+                  <span class="pending-label" matTooltip="Awaiting approver review">
+                    <mat-icon class="pending-icon">hourglass_top</mat-icon>
+                  </span>
                 }
               </td>
             </ng-container>
@@ -617,9 +617,36 @@ import { FinaliseConfirmDialogComponent } from '../pay-decisions/finalise-confir
       color: #92400e;
     }
 
+    .status-pending-review {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .status-approved {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .status-returned {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
     .status-finalised {
       background: #d1fae5;
       color: #065f46;
+    }
+
+    .pending-label {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .pending-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #3b82f6;
     }
 
     .actions-cell {
@@ -808,6 +835,21 @@ export class EmployeeDetailComponent implements OnInit {
 
   formatType(type: string): string {
     return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  formatStatus(status: string): string {
+    return status.replace(/_/g, ' ');
+  }
+
+  getStatusClass(status: string): string {
+    const map: Record<string, string> = {
+      'DRAFT': 'status-badge status-draft',
+      'PENDING_REVIEW': 'status-badge status-pending-review',
+      'APPROVED': 'status-badge status-approved',
+      'RETURNED': 'status-badge status-returned',
+      'FINALISED': 'status-badge status-finalised',
+    };
+    return map[status] ?? 'status-badge';
   }
 
   viewDecision(d: any) {

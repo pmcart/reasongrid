@@ -9,3 +9,5 @@ export * from './schemas/organization.js';
 export * from './schemas/audit-log.js';
 export * from './schemas/salary-range.js';
 export * from './schemas/rationale-definition.js';
+export * from './schemas/policy-rule.js';
+export * from './schemas/notification.js';

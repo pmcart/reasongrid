@@ -36,6 +36,14 @@
               <mat-icon matListItemIcon>menu_book</mat-icon>
               <span>Rationale Library</span>
             </a>
+            <a mat-list-item routerLink="/settings/policy-rules" routerLinkActive="active-link">
+              <mat-icon matListItemIcon>policy</mat-icon>
+              <span>Policy Rules</span>
+            </a>
+            <a mat-list-item routerLink="/settings/salary-ranges" routerLinkActive="active-link">
+              <mat-icon matListItemIcon>paid</mat-icon>
+              <span>Salary Ranges</span>
+            </a>
           }
         </mat-nav-list>
 
@@ -52,6 +60,7 @@
             </a>
           }
         </mat-nav-list>
+
       }
 
       <div class="sidenav-footer">
@@ -76,6 +85,9 @@
           <span class="org-name">{{ auth.user()?.organizationName }}</span>
         }
         <span class="spacer"></span>
+        @if (!auth.isSuperAdmin()) {
+          <app-notification-bell></app-notification-bell>
+        }
       </mat-toolbar>
       <div class="main-content">
         <router-outlet />

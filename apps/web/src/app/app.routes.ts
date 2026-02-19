@@ -88,6 +88,16 @@ export const routes: Routes = [
             (m) => m.RationaleVersionHistoryComponent,
           ),
       },
+      {
+        path: 'settings/policy-rules',
+        loadComponent: () =>
+          import('./settings/policy-rules.component').then((m) => m.PolicyRulesComponent),
+      },
+      {
+        path: 'settings/salary-ranges',
+        loadComponent: () =>
+          import('./settings/salary-ranges.component').then((m) => m.SalaryRangesComponent),
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },

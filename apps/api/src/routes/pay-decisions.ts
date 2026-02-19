@@ -1,11 +1,17 @@
 import { Router } from 'express';
-import { createPayDecisionSchema, updatePayDecisionSchema, DecisionStatus, UserRole } from '@cdi/shared';
+import {
+  createPayDecisionSchema, updatePayDecisionSchema,
+  evaluatePayDecisionSchema, submitPayDecisionSchema, returnPayDecisionSchema,
+  DecisionStatus, UserRole,
+} from '@cdi/shared';
 import { Prisma, RationaleStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { logAudit } from '../services/audit.js';
 import { computeSnapshotContext } from '../services/snapshot-context.js';
 import { runRiskComputation } from '../services/risk-computation.js';
+import { runEvaluation } from '../services/evaluation-checks/index.js';
+import { createNotification } from '../services/notifications.js';
 
 export const payDecisionRouter = Router();
 payDecisionRouter.use(authenticate);
@@ -245,8 +251,8 @@ payDecisionRouter.patch(
         res.status(404).json({ error: 'Pay decision not found' });
         return;
       }
-      if (existing.status === DecisionStatus.FINALISED) {
-        res.status(400).json({ error: 'Cannot edit a finalised decision' });
+      if (existing.status !== DecisionStatus.DRAFT && existing.status !== DecisionStatus.RETURNED) {
+        res.status(400).json({ error: 'Can only edit decisions in DRAFT or RETURNED status' });
         return;
       }
 
@@ -317,6 +323,10 @@ payDecisionRouter.post(
         res.status(400).json({ error: 'Decision is already finalised' });
         return;
       }
+      if (existing.status !== DecisionStatus.APPROVED && existing.status !== DecisionStatus.DRAFT) {
+        res.status(400).json({ error: 'Decision must be APPROVED or DRAFT to finalise' });
+        return;
+      }
 
       const decision = await prisma.payDecision.update({
         where: { id: req.params['id'] },
@@ -341,6 +351,272 @@ payDecisionRouter.post(
       // Trigger risk re-computation after finalisation (fire-and-forget)
       runRiskComputation(req.user!.organizationId!, req.user!.userId).catch((err) =>
         console.error('Risk computation after finalisation failed:', err),
+      );
+
+      res.json(decision);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Evaluate a proposed pay decision (stateless — does not create records)
+payDecisionRouter.post(
+  '/evaluate',
+  authorize(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.MANAGER),
+  async (req, res, next) => {
+    try {
+      const body = evaluatePayDecisionSchema.parse(req.body);
+      const result = await runEvaluation({
+        employeeId: body.employeeId,
+        organizationId: req.user!.organizationId!,
+        decisionType: body.decisionType,
+        payAfterBase: body.payAfterBase,
+      });
+      res.json(result);
+    } catch (err: any) {
+      if (err.status) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      next(err);
+    }
+  },
+);
+
+// Submit a decision for review
+payDecisionRouter.post(
+  '/:id/submit',
+  authorize(UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.MANAGER),
+  async (req, res, next) => {
+    try {
+      const existing = await prisma.payDecision.findUnique({
+        where: { id: req.params['id'] },
+        include: { employee: true },
+      });
+      if (!existing || existing.employee.organizationId !== req.user!.organizationId!) {
+        res.status(404).json({ error: 'Pay decision not found' });
+        return;
+      }
+      if (existing.status !== DecisionStatus.DRAFT && existing.status !== DecisionStatus.RETURNED) {
+        res.status(400).json({ error: 'Can only submit decisions in DRAFT or RETURNED status' });
+        return;
+      }
+
+      // Run evaluation
+      const evaluation = await runEvaluation({
+        employeeId: existing.employeeId,
+        organizationId: req.user!.organizationId!,
+        decisionType: existing.decisionType as any,
+        payAfterBase: existing.payAfterBase,
+      });
+
+      // If any check is BLOCK, reject submission
+      if (evaluation.overallStatus === 'BLOCK') {
+        res.status(400).json({
+          error: 'Cannot submit — one or more policy checks are blocking',
+          evaluation,
+        });
+        return;
+      }
+
+      // If WARNING, require acknowledgements
+      if (evaluation.overallStatus === 'WARNING') {
+        const body = submitPayDecisionSchema.parse(req.body);
+        const warningChecks = evaluation.checks
+          .filter((c) => c.status === 'WARNING')
+          .map((c) => c.checkType);
+        const acknowledged = body.warningAcknowledgements ?? [];
+        const missing = warningChecks.filter((ct) => !acknowledged.includes(ct as any));
+        if (missing.length > 0) {
+          res.status(400).json({
+            error: 'Warning acknowledgements required',
+            missingAcknowledgements: missing,
+            evaluation,
+          });
+          return;
+        }
+      }
+
+      const decision = await prisma.payDecision.update({
+        where: { id: req.params['id'] },
+        data: {
+          status: 'PENDING_REVIEW',
+          evaluationSnapshot: evaluation as any,
+          submittedAt: new Date(),
+        },
+        include: {
+          rationales: { include: { rationaleDefinition: true } },
+          snapshot: true,
+          owner: { select: { id: true, email: true, role: true } },
+          approver: { select: { id: true, email: true, role: true } },
+        },
+      });
+
+      logAudit({
+        organizationId: req.user!.organizationId!,
+        userId: req.user!.userId,
+        action: 'PAY_DECISION_SUBMITTED',
+        entityType: 'PayDecision',
+        entityId: decision.id,
+        metadata: { overallStatus: evaluation.overallStatus },
+      });
+
+      // Notify approver
+      createNotification(
+        existing.approverUserId,
+        'DECISION_SUBMITTED_FOR_REVIEW',
+        'PayDecision',
+        decision.id,
+        `A pay decision for ${existing.employee.employeeId} has been submitted for your review.`,
+      );
+
+      res.json(decision);
+    } catch (err: any) {
+      if (err.status === 400) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      next(err);
+    }
+  },
+);
+
+// Approve a decision
+payDecisionRouter.post(
+  '/:id/approve',
+  authorize(UserRole.ADMIN, UserRole.HR_MANAGER),
+  async (req, res, next) => {
+    try {
+      const existing = await prisma.payDecision.findUnique({
+        where: { id: req.params['id'] },
+        include: { employee: true },
+      });
+      if (!existing || existing.employee.organizationId !== req.user!.organizationId!) {
+        res.status(404).json({ error: 'Pay decision not found' });
+        return;
+      }
+      if (existing.status !== 'PENDING_REVIEW') {
+        res.status(400).json({ error: 'Can only approve decisions in PENDING_REVIEW status' });
+        return;
+      }
+      // Must be the named approver or ADMIN
+      if (existing.approverUserId !== req.user!.userId && req.user!.role !== 'ADMIN') {
+        res.status(403).json({ error: 'Only the named approver or an ADMIN can approve this decision' });
+        return;
+      }
+
+      // Approve and auto-finalise
+      const now = new Date();
+      const decision = await prisma.payDecision.update({
+        where: { id: req.params['id'] },
+        data: {
+          status: 'FINALISED',
+          approvedAt: now,
+          finalisedAt: now,
+        },
+        include: {
+          rationales: { include: { rationaleDefinition: true } },
+          snapshot: true,
+          owner: { select: { id: true, email: true, role: true } },
+          approver: { select: { id: true, email: true, role: true } },
+        },
+      });
+
+      logAudit({
+        organizationId: req.user!.organizationId!,
+        userId: req.user!.userId,
+        action: 'PAY_DECISION_APPROVED',
+        entityType: 'PayDecision',
+        entityId: decision.id,
+      });
+
+      logAudit({
+        organizationId: req.user!.organizationId!,
+        userId: req.user!.userId,
+        action: 'PAY_DECISION_FINALISED',
+        entityType: 'PayDecision',
+        entityId: decision.id,
+        metadata: { approvedBy: req.user!.userId },
+      });
+
+      // Notify the owner
+      createNotification(
+        existing.accountableOwnerUserId,
+        'DECISION_APPROVED',
+        'PayDecision',
+        decision.id,
+        `Your pay decision for ${existing.employee.employeeId} has been approved and finalised.`,
+      );
+
+      // Trigger risk re-computation
+      runRiskComputation(req.user!.organizationId!, req.user!.userId).catch((err) =>
+        console.error('Risk computation after approval failed:', err),
+      );
+
+      res.json(decision);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Return a decision (send back for revisions)
+payDecisionRouter.post(
+  '/:id/return',
+  authorize(UserRole.ADMIN, UserRole.HR_MANAGER),
+  async (req, res, next) => {
+    try {
+      const existing = await prisma.payDecision.findUnique({
+        where: { id: req.params['id'] },
+        include: { employee: true },
+      });
+      if (!existing || existing.employee.organizationId !== req.user!.organizationId!) {
+        res.status(404).json({ error: 'Pay decision not found' });
+        return;
+      }
+      if (existing.status !== 'PENDING_REVIEW') {
+        res.status(400).json({ error: 'Can only return decisions in PENDING_REVIEW status' });
+        return;
+      }
+      // Must be the named approver or ADMIN
+      if (existing.approverUserId !== req.user!.userId && req.user!.role !== 'ADMIN') {
+        res.status(403).json({ error: 'Only the named approver or an ADMIN can return this decision' });
+        return;
+      }
+
+      const body = returnPayDecisionSchema.parse(req.body);
+
+      const decision = await prisma.payDecision.update({
+        where: { id: req.params['id'] },
+        data: {
+          status: 'RETURNED',
+          returnReason: body.returnReason,
+        },
+        include: {
+          rationales: { include: { rationaleDefinition: true } },
+          snapshot: true,
+          owner: { select: { id: true, email: true, role: true } },
+          approver: { select: { id: true, email: true, role: true } },
+        },
+      });
+
+      logAudit({
+        organizationId: req.user!.organizationId!,
+        userId: req.user!.userId,
+        action: 'PAY_DECISION_RETURNED',
+        entityType: 'PayDecision',
+        entityId: decision.id,
+        metadata: { returnReason: body.returnReason },
+      });
+
+      // Notify the owner
+      createNotification(
+        existing.accountableOwnerUserId,
+        'DECISION_RETURNED',
+        'PayDecision',
+        decision.id,
+        `Your pay decision for ${existing.employee.employeeId} has been returned for revisions.`,
       );
 
       res.json(decision);

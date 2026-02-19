@@ -12,6 +12,8 @@ import { salaryRangeRouter } from './routes/salary-ranges.js';
 import { rationaleDefinitionRouter } from './routes/rationale-definitions.js';
 import { adminRouter } from './routes/admin.js';
 import { dashboardRouter } from './routes/dashboard.js';
+import { policyRuleRouter } from './routes/policy-rules.js';
+import { notificationRouter } from './routes/notifications.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { authenticate, superAdminOnly, requireOrgScope } from './middleware/auth.js';
 import { initScheduler } from './services/scheduler.js';
@@ -44,6 +46,8 @@ app.use('/audit', authenticate, requireOrgScope, auditRouter);
 app.use('/salary-ranges', authenticate, requireOrgScope, salaryRangeRouter);
 app.use('/rationale-definitions', authenticate, requireOrgScope, rationaleDefinitionRouter);
 app.use('/dashboard', authenticate, requireOrgScope, dashboardRouter);
+app.use('/policy-rules', authenticate, requireOrgScope, policyRuleRouter);
+app.use('/notifications', authenticate, requireOrgScope, notificationRouter);
 
 // Health check
 app.get('/health', (_req, res) => {

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -11,9 +11,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { ApiService } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { RationaleService, RationaleDefinition } from '../core/rationale.service';
+import { EvaluationService, EvaluationResult } from '../core/evaluation.service';
+import { EvaluationPanelComponent } from './evaluation-panel.component';
 
 const DECISION_TYPES = ['NEW_HIRE', 'PROMOTION', 'ADJUSTMENT', 'ANNUAL_INCREASE', 'OTHER'];
 
@@ -44,6 +49,7 @@ interface OrgUser {
     CommonModule, FormsModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatButtonModule, MatDatepickerModule, MatNativeDateModule,
     MatIconModule, MatSnackBarModule, MatProgressSpinnerModule, MatCardModule,
+    MatCheckboxModule, EvaluationPanelComponent,
   ],
   template: `
     <mat-card class="form-card">
@@ -51,7 +57,7 @@ interface OrgUser {
         <div class="form-header-content">
           <mat-icon class="form-header-icon">description</mat-icon>
           <div>
-            <h3 class="form-title">{{ isEditMode ? 'Edit Pay Decision' : 'Record Pay Decision' }}</h3>
+            <h3 class="form-title">{{ isEditMode ? 'Edit Pay Decision' : 'Propose Pay Change' }}</h3>
             <p class="form-subtitle">{{ employee?.employeeId }} &middot; {{ employee?.roleTitle }}</p>
           </div>
         </div>
@@ -63,7 +69,7 @@ interface OrgUser {
           <div class="form-row">
             <mat-form-field appearance="outline" class="flex-1">
               <mat-label>Decision Type</mat-label>
-              <mat-select [(ngModel)]="form.decisionType" required>
+              <mat-select [(ngModel)]="form.decisionType" (ngModelChange)="onEvalInputChange()" required>
                 @for (t of decisionTypes; track t) {
                   <mat-option [value]="t">{{ formatType(t) }}</mat-option>
                 }
@@ -91,7 +97,8 @@ interface OrgUser {
             <mat-form-field appearance="outline" class="flex-1">
               <mat-label>Pay After (Base)</mat-label>
               <span matPrefix class="currency-prefix">{{ employee?.currency }}&nbsp;</span>
-              <input matInput type="number" [(ngModel)]="form.payAfterBase" required />
+              <input matInput type="number" [(ngModel)]="form.payAfterBase"
+                     (ngModelChange)="onPayAfterChange($event)" required />
             </mat-form-field>
           </div>
           @if (form.payBeforeBase && form.payAfterBase && form.payBeforeBase > 0) {
@@ -99,6 +106,14 @@ interface OrgUser {
               {{ changePercent > 0 ? '+' : '' }}{{ changePercent | number:'1.1-1' }}% change
             </div>
           }
+
+          <!-- Evaluation Panel (live feedback) -->
+          <app-evaluation-panel
+            [result]="evaluationResult"
+            [loading]="evaluationLoading"
+            [error]="evaluationError">
+          </app-evaluation-panel>
+
           <div class="form-row">
             <mat-form-field appearance="outline" class="flex-1">
               <mat-label>Bonus Before (optional)</mat-label>
@@ -179,21 +194,43 @@ interface OrgUser {
             </mat-form-field>
           </div>
         </div>
+
+        <!-- Warning acknowledgement (when evaluation has warnings) -->
+        @if (evaluationResult?.overallStatus === 'WARNING' && warningCheckTypes.length > 0) {
+          <div class="form-section">
+            <div class="warning-ack-box">
+              <mat-checkbox [(ngModel)]="warningsAcknowledged" color="warn">
+                I acknowledge the policy warnings above and confirm this decision should proceed for review
+              </mat-checkbox>
+            </div>
+          </div>
+        }
       </div>
 
       <div class="form-actions">
         @if (errorMessage) {
           <span class="error-text">{{ errorMessage }}</span>
         }
-        <button mat-button (click)="cancel()" [disabled]="saving">Cancel</button>
-        <button mat-raised-button color="primary" (click)="save()" [disabled]="saving || !isValid()">
+        <button mat-button (click)="cancel()" [disabled]="saving || submitting">Cancel</button>
+        <button mat-raised-button (click)="save()" [disabled]="saving || submitting || !isValid()">
           @if (saving) {
             <mat-spinner diameter="18" class="btn-spinner"></mat-spinner>
           } @else {
             <mat-icon>save</mat-icon>
           }
-          {{ isEditMode ? 'Update Draft' : 'Save as Draft' }}
+          {{ isEditMode ? 'Update Draft' : 'Save Draft' }}
         </button>
+        @if (isEditMode && canSubmit) {
+          <button mat-raised-button color="primary" (click)="submitForReview()"
+                  [disabled]="submitting || !isValid() || isSubmitBlocked">
+            @if (submitting) {
+              <mat-spinner diameter="18" class="btn-spinner"></mat-spinner>
+            } @else {
+              <mat-icon>send</mat-icon>
+            }
+            Submit for Review
+          </button>
+        }
       </div>
     </mat-card>
   `,
@@ -301,6 +338,13 @@ interface OrgUser {
       color: #dc2626;
     }
 
+    .warning-ack-box {
+      padding: 12px 16px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+    }
+
     .form-actions {
       display: flex;
       align-items: center;
@@ -322,7 +366,7 @@ interface OrgUser {
     }
   `],
 })
-export class PayDecisionFormComponent implements OnInit, OnChanges {
+export class PayDecisionFormComponent implements OnInit, OnChanges, OnDestroy {
   @Input() employee: any;
   @Input() decision: any = null;
   @Output() saved = new EventEmitter<any>();
@@ -332,8 +376,18 @@ export class PayDecisionFormComponent implements OnInit, OnChanges {
   rationaleGroups: RationaleGroup[] = [];
   users: OrgUser[] = [];
   saving = false;
+  submitting = false;
   errorMessage = '';
   isEditMode = false;
+
+  // Evaluation state
+  evaluationResult: EvaluationResult | null = null;
+  evaluationLoading = false;
+  evaluationError: string | null = null;
+  warningsAcknowledged = false;
+
+  private evalInput$ = new Subject<{ employeeId: string; decisionType: string; payAfterBase: number }>();
+  private destroy$ = new Subject<void>();
 
   form: any = {
     decisionType: '',
@@ -356,6 +410,7 @@ export class PayDecisionFormComponent implements OnInit, OnChanges {
     private auth: AuthService,
     private snackBar: MatSnackBar,
     private rationaleService: RationaleService,
+    private evaluationService: EvaluationService,
   ) {}
 
   ngOnInit() {
@@ -370,6 +425,34 @@ export class PayDecisionFormComponent implements OnInit, OnChanges {
       },
       error: () => {},
     });
+
+    // Debounced evaluation
+    this.evalInput$.pipe(
+      debounceTime(500),
+      distinctUntilChanged((a, b) =>
+        a.employeeId === b.employeeId && a.decisionType === b.decisionType && a.payAfterBase === b.payAfterBase
+      ),
+      takeUntil(this.destroy$),
+    ).subscribe(({ employeeId, decisionType, payAfterBase }) => {
+      this.evaluationLoading = true;
+      this.evaluationError = null;
+      this.evaluationService.evaluate(employeeId, decisionType, payAfterBase).subscribe({
+        next: (result) => {
+          this.evaluationResult = result;
+          this.evaluationLoading = false;
+          this.warningsAcknowledged = false;
+        },
+        error: (err) => {
+          this.evaluationLoading = false;
+          this.evaluationError = err?.error?.error || 'Failed to run evaluation';
+        },
+      });
+    });
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private groupByCategory(defs: RationaleDefinition[]): RationaleGroup[] {
@@ -396,6 +479,10 @@ export class PayDecisionFormComponent implements OnInit, OnChanges {
   }
 
   private initForm() {
+    this.evaluationResult = null;
+    this.evaluationError = null;
+    this.warningsAcknowledged = false;
+
     if (this.decision) {
       this.isEditMode = true;
       const d = this.decision;
@@ -414,6 +501,10 @@ export class PayDecisionFormComponent implements OnInit, OnChanges {
         accountableOwnerUserId: d.accountableOwnerUserId ?? '',
         approverUserId: d.approverUserId ?? '',
       };
+      // Trigger evaluation on edit load
+      if (d.payAfterBase && d.decisionType) {
+        this.triggerEvaluation();
+      }
     } else if (this.employee) {
       this.isEditMode = false;
       this.form = {
@@ -434,11 +525,48 @@ export class PayDecisionFormComponent implements OnInit, OnChanges {
     }
     this.errorMessage = '';
     this.saving = false;
+    this.submitting = false;
+  }
+
+  onPayAfterChange(_value: number) {
+    this.triggerEvaluation();
+  }
+
+  onEvalInputChange() {
+    this.triggerEvaluation();
+  }
+
+  private triggerEvaluation() {
+    if (this.employee?.id && this.form.decisionType && this.form.payAfterBase > 0) {
+      this.evalInput$.next({
+        employeeId: this.employee.id,
+        decisionType: this.form.decisionType,
+        payAfterBase: this.form.payAfterBase,
+      });
+    }
   }
 
   get changePercent(): number {
     if (!this.form.payBeforeBase || this.form.payBeforeBase === 0) return 0;
     return ((this.form.payAfterBase - this.form.payBeforeBase) / this.form.payBeforeBase) * 100;
+  }
+
+  get warningCheckTypes(): string[] {
+    if (!this.evaluationResult) return [];
+    return this.evaluationResult.checks
+      .filter(c => c.status === 'WARNING')
+      .map(c => c.checkType);
+  }
+
+  get isSubmitBlocked(): boolean {
+    if (!this.evaluationResult) return true;
+    if (this.evaluationResult.overallStatus === 'BLOCK') return true;
+    if (this.evaluationResult.overallStatus === 'WARNING' && !this.warningsAcknowledged) return true;
+    return false;
+  }
+
+  get canSubmit(): boolean {
+    return this.decision?.status === 'DRAFT' || this.decision?.status === 'RETURNED';
   }
 
   formatType(type: string): string {
@@ -488,6 +616,43 @@ export class PayDecisionFormComponent implements OnInit, OnChanges {
       error: (err) => {
         this.saving = false;
         this.errorMessage = err?.error?.error || 'Failed to save pay decision';
+      },
+    });
+  }
+
+  submitForReview() {
+    if (!this.decision?.id || !this.isValid()) return;
+    this.submitting = true;
+    this.errorMessage = '';
+
+    // First save any changes
+    const payload = {
+      ...this.form,
+      effectiveDate: new Date(this.form.effectiveDate).toISOString(),
+      accountableOwnerUserId: this.form.accountableOwnerUserId || undefined,
+    };
+
+    this.api.patch(`/pay-decisions/${this.decision.id}`, payload).subscribe({
+      next: () => {
+        // Then submit
+        const submitPayload: any = {};
+        if (this.warningCheckTypes.length > 0 && this.warningsAcknowledged) {
+          submitPayload.warningAcknowledgements = this.warningCheckTypes;
+        }
+        this.api.post(`/pay-decisions/${this.decision.id}/submit`, submitPayload).subscribe({
+          next: (result) => {
+            this.snackBar.open('Pay decision submitted for review', 'OK', { duration: 3000 });
+            this.saved.emit(result);
+          },
+          error: (err) => {
+            this.submitting = false;
+            this.errorMessage = err?.error?.error || 'Failed to submit for review';
+          },
+        });
+      },
+      error: (err) => {
+        this.submitting = false;
+        this.errorMessage = err?.error?.error || 'Failed to save changes before submitting';
       },
     });
   }

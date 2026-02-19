@@ -19,6 +19,44 @@ salaryRangeRouter.get('/', async (req, res, next) => {
   }
 });
 
+// Get distinct employee groups and their salary range coverage
+// NOTE: Must be before /:id to avoid Express matching "coverage" as an id
+salaryRangeRouter.get('/coverage', async (req, res, next) => {
+  try {
+    const orgId = req.user!.organizationId!;
+
+    // Get distinct (country, jobFamily, level, currency) from employees
+    const employeeGroups = await prisma.employee.groupBy({
+      by: ['country', 'jobFamily', 'level', 'currency'],
+      where: { organizationId: orgId },
+      _count: { id: true },
+    });
+
+    // Get all salary ranges for this org
+    const ranges = await prisma.salaryRange.findMany({
+      where: { organizationId: orgId },
+    });
+
+    // Build a set of covered keys
+    const coveredKeys = new Set(
+      ranges.map((r) => `${r.country}|${r.jobFamily ?? ''}|${r.level}`),
+    );
+
+    const groups = employeeGroups.map((g) => ({
+      country: g.country,
+      jobFamily: g.jobFamily,
+      level: g.level,
+      currency: g.currency,
+      employeeCount: g._count.id,
+      hasSalaryRange: coveredKeys.has(`${g.country}|${g.jobFamily ?? ''}|${g.level}`),
+    }));
+
+    res.json(groups);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Get a single salary range
 salaryRangeRouter.get('/:id', async (req, res, next) => {
   try {

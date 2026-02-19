@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DecisionType, DecisionStatus } from '../enums.js';
+import { DecisionType, DecisionStatus, CheckType, PolicySeverity } from '../enums.js';
 
 export const createPayDecisionSchema = z.object({
   decisionType: z.nativeEnum(DecisionType),
@@ -29,6 +29,43 @@ export const payDecisionSchema = createPayDecisionSchema.extend({
 
 export const updatePayDecisionSchema = createPayDecisionSchema.partial();
 
+export const evaluatePayDecisionSchema = z.object({
+  employeeId: z.string(),
+  decisionType: z.nativeEnum(DecisionType),
+  payAfterBase: z.number(),
+  payAfterBonus: z.number().nullable().optional(),
+  payAfterLti: z.number().nullable().optional(),
+});
+
+export const checkResultSchema = z.object({
+  checkType: z.nativeEnum(CheckType),
+  status: z.enum(['PASS', 'WARNING', 'BLOCK']),
+  severity: z.nativeEnum(PolicySeverity),
+  headline: z.string(),
+  detail: z.string(),
+  currentValue: z.number().optional(),
+  projectedValue: z.number().optional(),
+  threshold: z.number().optional(),
+});
+
+export const evaluationResultSchema = z.object({
+  overallStatus: z.enum(['PASS', 'WARNING', 'BLOCK']),
+  checks: z.array(checkResultSchema),
+});
+
+export const submitPayDecisionSchema = z.object({
+  warningAcknowledgements: z.array(z.nativeEnum(CheckType)).optional(),
+});
+
+export const returnPayDecisionSchema = z.object({
+  returnReason: z.string().min(1),
+});
+
 export type CreatePayDecision = z.infer<typeof createPayDecisionSchema>;
 export type PayDecision = z.infer<typeof payDecisionSchema>;
 export type UpdatePayDecision = z.infer<typeof updatePayDecisionSchema>;
+export type EvaluatePayDecision = z.infer<typeof evaluatePayDecisionSchema>;
+export type CheckResult = z.infer<typeof checkResultSchema>;
+export type EvaluationResult = z.infer<typeof evaluationResultSchema>;
+export type SubmitPayDecision = z.infer<typeof submitPayDecisionSchema>;
+export type ReturnPayDecision = z.infer<typeof returnPayDecisionSchema>;
