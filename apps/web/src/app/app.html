@@ -17,50 +17,115 @@
           </a>
         </mat-nav-list>
       } @else {
-        <div class="nav-section-label">Main</div>
-        <mat-nav-list>
+        <!-- Dashboard (top-level, no group) -->
+        <mat-nav-list class="nav-top-items">
           <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link">
             <mat-icon matListItemIcon>dashboard</mat-icon>
             <span>Dashboard</span>
           </a>
-          <a mat-list-item routerLink="/employees" routerLinkActive="active-link">
-            <mat-icon matListItemIcon>people</mat-icon>
-            <span>Employees</span>
-          </a>
-          <a mat-list-item routerLink="/imports" routerLinkActive="active-link">
-            <mat-icon matListItemIcon>upload_file</mat-icon>
-            <span>Imports</span>
-          </a>
-          @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
-            <a mat-list-item routerLink="/rationale-library" routerLinkActive="active-link">
-              <mat-icon matListItemIcon>menu_book</mat-icon>
-              <span>Rationale Library</span>
-            </a>
-            <a mat-list-item routerLink="/settings/policy-rules" routerLinkActive="active-link">
-              <mat-icon matListItemIcon>policy</mat-icon>
-              <span>Policy Rules</span>
-            </a>
-            <a mat-list-item routerLink="/settings/salary-ranges" routerLinkActive="active-link">
-              <mat-icon matListItemIcon>paid</mat-icon>
-              <span>Salary Ranges</span>
-            </a>
-          }
         </mat-nav-list>
 
-        <div class="nav-section-label">Analytics</div>
-        <mat-nav-list>
-          <a mat-list-item routerLink="/risk" routerLinkActive="active-link">
-            <mat-icon matListItemIcon>monitoring</mat-icon>
-            <span>Risk Radar</span>
-          </a>
-          @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
-            <a mat-list-item routerLink="/audit" routerLinkActive="active-link">
-              <mat-icon matListItemIcon>history</mat-icon>
-              <span>Audit Log</span>
-            </a>
+        <!-- People -->
+        <div class="nav-group">
+          <button class="nav-group-header" (click)="toggleGroup('people')">
+            <span class="nav-group-title">People</span>
+            <mat-icon class="nav-group-chevron" [class.expanded]="expandedGroups['people']">expand_more</mat-icon>
+          </button>
+          @if (expandedGroups['people']) {
+            <mat-nav-list class="nav-group-items">
+              <a mat-list-item routerLink="/employees" routerLinkActive="active-link">
+                <mat-icon matListItemIcon>people</mat-icon>
+                <span>Employees</span>
+              </a>
+              <a mat-list-item routerLink="/imports" routerLinkActive="active-link">
+                <mat-icon matListItemIcon>upload_file</mat-icon>
+                <span>Imports</span>
+              </a>
+            </mat-nav-list>
           }
-        </mat-nav-list>
+        </div>
 
+        <!-- Compensation -->
+        @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
+          <div class="nav-group">
+            <button class="nav-group-header" (click)="toggleGroup('compensation')">
+              <span class="nav-group-title">Compensation</span>
+              <mat-icon class="nav-group-chevron" [class.expanded]="expandedGroups['compensation']">expand_more</mat-icon>
+            </button>
+            @if (expandedGroups['compensation']) {
+              <mat-nav-list class="nav-group-items">
+                <a mat-list-item routerLink="/rationale-library" routerLinkActive="active-link">
+                  <mat-icon matListItemIcon>menu_book</mat-icon>
+                  <span>Rationale Library</span>
+                </a>
+                <a mat-list-item routerLink="/settings/salary-ranges" routerLinkActive="active-link">
+                  <mat-icon matListItemIcon>paid</mat-icon>
+                  <span>Salary Ranges</span>
+                </a>
+                <a mat-list-item routerLink="/settings/policy-rules" routerLinkActive="active-link">
+                  <mat-icon matListItemIcon>policy</mat-icon>
+                  <span>Policy Rules</span>
+                </a>
+              </mat-nav-list>
+            }
+          </div>
+        }
+
+        <!-- Compliance -->
+        <div class="nav-group">
+          <button class="nav-group-header" (click)="toggleGroup('compliance')">
+            <span class="nav-group-title">Compliance</span>
+            <mat-icon class="nav-group-chevron" [class.expanded]="expandedGroups['compliance']">expand_more</mat-icon>
+          </button>
+          @if (expandedGroups['compliance']) {
+            <mat-nav-list class="nav-group-items">
+              <a mat-list-item routerLink="/compliance/readiness" routerLinkActive="active-link">
+                <mat-icon matListItemIcon>verified_user</mat-icon>
+                <span>Directive Readiness</span>
+              </a>
+              <a mat-list-item routerLink="/compliance/disclosure-generator" routerLinkActive="active-link">
+                <mat-icon matListItemIcon>description</mat-icon>
+                <span>Salary Disclosure</span>
+              </a>
+              <a mat-list-item routerLink="/classification/roles" routerLinkActive="active-link">
+                <mat-icon matListItemIcon>category</mat-icon>
+                <span>Role Classification</span>
+              </a>
+              @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
+                <a mat-list-item routerLink="/classification/dimensions" routerLinkActive="active-link">
+                  <mat-icon matListItemIcon>tune</mat-icon>
+                  <span>Classification Config</span>
+                </a>
+                <a mat-list-item routerLink="/compliance/audit-pack" routerLinkActive="active-link">
+                  <mat-icon matListItemIcon>inventory_2</mat-icon>
+                  <span>Audit Pack</span>
+                </a>
+              }
+            </mat-nav-list>
+          }
+        </div>
+
+        <!-- Analytics -->
+        <div class="nav-group">
+          <button class="nav-group-header" (click)="toggleGroup('analytics')">
+            <span class="nav-group-title">Analytics</span>
+            <mat-icon class="nav-group-chevron" [class.expanded]="expandedGroups['analytics']">expand_more</mat-icon>
+          </button>
+          @if (expandedGroups['analytics']) {
+            <mat-nav-list class="nav-group-items">
+              <a mat-list-item routerLink="/risk" routerLinkActive="active-link">
+                <mat-icon matListItemIcon>monitoring</mat-icon>
+                <span>Risk Radar</span>
+              </a>
+              @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
+                <a mat-list-item routerLink="/audit" routerLinkActive="active-link">
+                  <mat-icon matListItemIcon>history</mat-icon>
+                  <span>Audit Log</span>
+                </a>
+              }
+            </mat-nav-list>
+          }
+        </div>
       }
 
       <div class="sidenav-footer">

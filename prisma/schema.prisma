@@ -16,13 +16,17 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users                 User[]
-  employees             Employee[]
-  importJobs            ImportJob[]
-  riskRuns              RiskRun[]
-  rationaleDefinitions  RationaleDefinition[]
-  aiRiskReports         AiRiskReport[]
-  policyRules           PolicyRule[]
+  users                    User[]
+  employees                Employee[]
+  importJobs               ImportJob[]
+  riskRuns                  RiskRun[]
+  rationaleDefinitions     RationaleDefinition[]
+  aiRiskReports            AiRiskReport[]
+  policyRules              PolicyRule[]
+  classificationDimensions ClassificationDimension[]
+  roleClassifications      RoleClassification[]
+  disclosureTemplates      DisclosureTemplate[]
+  aiProviderConfig         AiProviderConfig?
 }
 
 // --- Auth ---
@@ -44,10 +48,11 @@ model User {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  organization      Organization?  @relation(fields: [organizationId], references: [id])
-  importJobs        ImportJob[]
-  ownedDecisions    PayDecision[] @relation("DecisionOwner")
-  approvedDecisions PayDecision[] @relation("DecisionApprover")
+  organization              Organization?        @relation(fields: [organizationId], references: [id])
+  importJobs                ImportJob[]
+  ownedDecisions            PayDecision[]        @relation("DecisionOwner")
+  approvedDecisions         PayDecision[]        @relation("DecisionApprover")
+  confirmedClassifications  RoleClassification[] @relation("ClassificationConfirmer")
 }
 
 // --- Employees ---
@@ -429,6 +434,13 @@ enum AuditAction {
   RATIONALE_CREATED
   RATIONALE_UPDATED
   RATIONALE_ARCHIVED
+  CLASSIFICATION_DIMENSION_CREATED
+  CLASSIFICATION_DIMENSION_UPDATED
+  ROLE_CLASSIFICATION_AI_GENERATED
+  ROLE_CLASSIFICATION_CONFIRMED
+  ROLE_CLASSIFICATION_UPDATED
+  DISCLOSURE_GENERATED
+  AUDIT_PACK_EXPORTED
 }
 
 model AuditLog {
@@ -446,4 +458,124 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([userId])
   @@index([action])
+}
+
+// --- Classification (Equal Value) ---
+
+enum ScaleType {
+  NUMERIC_1_5
+  NUMERIC_1_10
+  LEVEL_LOW_MED_HIGH
+  CUSTOM
+}
+
+enum ClassificationStatus {
+  UNCLASSIFIED
+  AI_SUGGESTED
+  CONFIRMED
+}
+
+model ClassificationDimension {
+  id             String    @id @default(uuid())
+  organizationId String
+  code           String
+  name           String
+  description    String    @db.Text
+  scaleType      ScaleType
+  scaleConfig    Json      @default("{}")
+  sortOrder      Int       @default(0)
+  isDefault      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization              @relation(fields: [organizationId], references: [id])
+  tags         RoleClassificationTag[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, sortOrder])
+}
+
+model RoleClassification {
+  id                String               @id @default(uuid())
+  organizationId    String
+  country           String
+  jobFamily         String?
+  level             String
+  roleTitle         String
+  jobDescription    String?              @db.Text
+  status            ClassificationStatus @default(UNCLASSIFIED)
+  confirmedByUserId String?
+  confirmedAt       DateTime?
+  aiProvider        String?
+  aiModel           String?
+  aiGeneratedAt     DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  organization Organization              @relation(fields: [organizationId], references: [id])
+  confirmedBy  User?                      @relation("ClassificationConfirmer", fields: [confirmedByUserId], references: [id])
+  tags         RoleClassificationTag[]
+
+  @@unique([organizationId, country, jobFamily, level, roleTitle])
+  @@index([organizationId, status])
+  @@index([organizationId, country, jobFamily, level])
+}
+
+model RoleClassificationTag {
+  id                   String  @id @default(uuid())
+  roleClassificationId String
+  dimensionId          String
+  value                String
+  numericValue         Float?
+  aiConfidence         Float?
+  notes                String? @db.Text
+  createdAt            DateTime @default(now())
+
+  roleClassification RoleClassification    @relation(fields: [roleClassificationId], references: [id], onDelete: Cascade)
+  dimension          ClassificationDimension @relation(fields: [dimensionId], references: [id])
+
+  @@unique([roleClassificationId, dimensionId])
+  @@index([dimensionId])
+}
+
+// --- Disclosure Templates ---
+
+enum DisclosureTemplateType {
+  JOB_AD_FULL
+  JOB_AD_BRIEF
+  OFFER_LETTER
+  TRANSPARENCY_REPORT
+}
+
+model DisclosureTemplate {
+  id             String                  @id @default(uuid())
+  organizationId String?
+  country        String?
+  templateType   DisclosureTemplateType
+  name           String
+  content        String                  @db.Text
+  isActive       Boolean                 @default(true)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, templateType, isActive])
+  @@index([country, templateType])
+}
+
+// --- AI Provider Configuration ---
+
+model AiProviderConfig {
+  id             String   @id @default(uuid())
+  organizationId String   @unique
+  provider       String
+  baseUrl        String?
+  model          String
+  apiKey         String?  @db.Text
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
 }

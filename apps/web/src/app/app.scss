@@ -52,6 +52,57 @@
   padding: 20px 24px 4px;
 }
 
+// ─── Nav groups (collapsible) ─────────────────────────────────────
+
+.nav-top-items {
+  padding-bottom: 0;
+}
+
+.nav-group {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.nav-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 24px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #f8fafc;
+  }
+}
+
+.nav-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.nav-group-chevron {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #cbd5e1;
+  transition: transform 0.2s ease;
+
+  &.expanded {
+    transform: rotate(180deg);
+  }
+}
+
+.nav-group-items {
+  padding-top: 0;
+  padding-bottom: 4px;
+}
+
 ::ng-deep {
   .active-link {
     background: #eef2ff !important;

@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, RationaleCategory, RationaleStatus, CheckType, PolicySeverity } from '@prisma/client';
+import { PrismaClient, UserRole, RationaleCategory, RationaleStatus, CheckType, PolicySeverity, ScaleType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -640,6 +640,117 @@ async function main() {
   });
 
   console.log('  Created 8 finalised pay decisions with rationales');
+
+  // --- Classification Dimensions (EU 4-factor default) ---
+  console.log('Seeding classification dimensions...');
+  const defaultDimensions = [
+    {
+      code: 'EFFORT',
+      name: 'Effort',
+      description: 'Physical, mental, and emotional effort required to perform the role. Includes intensity, concentration demands, and sustained workload expectations.',
+      scaleType: ScaleType.NUMERIC_1_5,
+      scaleConfig: { min: 1, max: 5, labels: { 1: 'Minimal', 2: 'Low', 3: 'Moderate', 4: 'High', 5: 'Very High' } },
+      sortOrder: 1,
+      isDefault: true,
+    },
+    {
+      code: 'RESPONSIBILITY',
+      name: 'Responsibility',
+      description: 'Decision-making authority, accountability, and organisational impact of the role. Includes budget oversight, team leadership, and strategic influence.',
+      scaleType: ScaleType.NUMERIC_1_5,
+      scaleConfig: { min: 1, max: 5, labels: { 1: 'Minimal', 2: 'Low', 3: 'Moderate', 4: 'High', 5: 'Very High' } },
+      sortOrder: 2,
+      isDefault: true,
+    },
+    {
+      code: 'SKILLS',
+      name: 'Skills',
+      description: 'Qualifications, technical expertise, interpersonal skills, and competencies required for the role. Includes formal education, certifications, and specialised knowledge.',
+      scaleType: ScaleType.NUMERIC_1_5,
+      scaleConfig: { min: 1, max: 5, labels: { 1: 'Basic', 2: 'Intermediate', 3: 'Advanced', 4: 'Expert', 5: 'Leading Expert' } },
+      sortOrder: 3,
+      isDefault: true,
+    },
+    {
+      code: 'WORKING_CONDITIONS',
+      name: 'Working Conditions',
+      description: 'Environmental factors, physical demands, and job conditions. Includes travel requirements, hazard exposure, and schedule flexibility.',
+      scaleType: ScaleType.NUMERIC_1_5,
+      scaleConfig: { min: 1, max: 5, labels: { 1: 'Standard Office', 2: 'Mostly Office', 3: 'Mixed', 4: 'Demanding', 5: 'Highly Demanding' } },
+      sortOrder: 4,
+      isDefault: true,
+    },
+  ];
+
+  for (const dim of defaultDimensions) {
+    await prisma.classificationDimension.upsert({
+      where: {
+        organizationId_code: {
+          organizationId: org.id,
+          code: dim.code,
+        },
+      },
+      update: {},
+      create: {
+        organizationId: org.id,
+        ...dim,
+      },
+    });
+    console.log(`  Dimension: ${dim.code} (${dim.name})`);
+  }
+
+  // --- Disclosure Templates ---
+  console.log('Seeding disclosure templates...');
+  const disclosureTemplates = [
+    {
+      templateType: 'JOB_AD_FULL' as const,
+      name: 'Full Job Ad Disclosure (EU Standard)',
+      content: `Salary Transparency Notice
+
+Position: {{roleTitle}}
+Level: {{level}}
+Location: {{country}}
+
+In accordance with EU Pay Transparency Directive requirements, the salary range for this position is:
+
+Minimum: {{salaryMinFormatted}}
+Midpoint: {{salaryMidFormatted}}
+Maximum: {{salaryMaxFormatted}}
+
+The actual salary offered will be determined based on objective, gender-neutral criteria including relevant experience, qualifications, and scope of responsibility. These criteria are applied consistently across all candidates.
+
+Additional compensation elements (where applicable) will be discussed during the recruitment process.
+
+This information is provided to support pay transparency and equal pay for equal work or work of equal value.`,
+    },
+    {
+      templateType: 'JOB_AD_BRIEF' as const,
+      name: 'Brief Job Ad Disclosure',
+      content: `Salary Range: {{salaryMinFormatted}} – {{salaryMaxFormatted}} ({{currency}})
+Position: {{roleTitle}} ({{level}})
+
+Placement within the range is based on objective criteria including experience and qualifications.`,
+    },
+  ];
+
+  for (const tmpl of disclosureTemplates) {
+    const existing = await prisma.disclosureTemplate.findFirst({
+      where: { organizationId: org.id, name: tmpl.name },
+    });
+    if (!existing) {
+      await prisma.disclosureTemplate.create({
+        data: {
+          organizationId: org.id,
+          country: null,
+          ...tmpl,
+          isActive: true,
+        },
+      });
+      console.log(`  Template: ${tmpl.name}`);
+    } else {
+      console.log(`  Template: ${tmpl.name} (exists)`);
+    }
+  }
 
   console.log('\n=== Seed complete ===');
   console.log('Demo accounts:');

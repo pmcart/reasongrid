@@ -14,6 +14,9 @@ import { adminRouter } from './routes/admin.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { policyRuleRouter } from './routes/policy-rules.js';
 import { notificationRouter } from './routes/notifications.js';
+import { classificationDimensionRouter } from './routes/classification-dimensions.js';
+import { roleClassificationRouter } from './routes/role-classifications.js';
+import { complianceRouter } from './routes/compliance.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { authenticate, superAdminOnly, requireOrgScope } from './middleware/auth.js';
 import { initScheduler } from './services/scheduler.js';
@@ -48,6 +51,9 @@ app.use('/rationale-definitions', authenticate, requireOrgScope, rationaleDefini
 app.use('/dashboard', authenticate, requireOrgScope, dashboardRouter);
 app.use('/policy-rules', authenticate, requireOrgScope, policyRuleRouter);
 app.use('/notifications', authenticate, requireOrgScope, notificationRouter);
+app.use('/classification-dimensions', authenticate, requireOrgScope, classificationDimensionRouter);
+app.use('/role-classifications', authenticate, requireOrgScope, roleClassificationRouter);
+app.use('/compliance', authenticate, requireOrgScope, complianceRouter);
 
 // Health check
 app.get('/health', (_req, res) => {

@@ -11,3 +11,5 @@ export * from './schemas/salary-range.js';
 export * from './schemas/rationale-definition.js';
 export * from './schemas/policy-rule.js';
 export * from './schemas/notification.js';
+export * from './schemas/classification.js';
+export * from './schemas/compliance.js';

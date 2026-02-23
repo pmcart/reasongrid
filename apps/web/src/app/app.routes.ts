@@ -98,6 +98,33 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./settings/salary-ranges.component').then((m) => m.SalaryRangesComponent),
       },
+      // Compliance
+      {
+        path: 'compliance/readiness',
+        loadComponent: () =>
+          import('./compliance/readiness-dashboard.component').then((m) => m.ReadinessDashboardComponent),
+      },
+      {
+        path: 'compliance/disclosure-generator',
+        loadComponent: () =>
+          import('./compliance/disclosure-generator.component').then((m) => m.DisclosureGeneratorComponent),
+      },
+      {
+        path: 'compliance/audit-pack',
+        loadComponent: () =>
+          import('./compliance/audit-pack.component').then((m) => m.AuditPackComponent),
+      },
+      // Classification
+      {
+        path: 'classification/roles',
+        loadComponent: () =>
+          import('./classification/role-classification-list.component').then((m) => m.RoleClassificationListComponent),
+      },
+      {
+        path: 'classification/dimensions',
+        loadComponent: () =>
+          import('./classification/classification-dimensions.component').then((m) => m.ClassificationDimensionsComponent),
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },
