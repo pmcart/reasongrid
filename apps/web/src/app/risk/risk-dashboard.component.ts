@@ -55,8 +55,8 @@ interface AiReportListItem {
             <span class="last-run">Last analysis: {{ lastRunAt | date:'medium' }}</span>
           }
           <button mat-raised-button color="primary" (click)="triggerRun()" [disabled]="running">
-            <mat-icon>{{ running ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
-            {{ running ? 'Running...' : 'Run Analysis' }}
+            <mat-icon>{{ running ? 'hourglass_empty' : (lastRunAt ? 'refresh' : 'play_arrow') }}</mat-icon>
+            {{ running ? 'Running...' : (lastRunAt ? 'Re-run Analysis' : 'Run Analysis') }}
           </button>
         </div>
       </div>
@@ -99,7 +99,7 @@ interface AiReportListItem {
             </div>
             <button mat-stroked-button (click)="generateAiReport()" [disabled]="aiLoading">
               <mat-icon>{{ aiLoading ? 'hourglass_empty' : 'auto_awesome' }}</mat-icon>
-              {{ aiLoading ? 'Generating...' : (activeReport ? 'Regenerate' : 'Generate Report') }}
+              {{ aiLoading ? 'Generating...' : (reports.length > 0 ? 'Generate Updated Report' : 'Generate Report') }}
             </button>
           </div>
           @if (aiLoading) {
@@ -110,6 +110,12 @@ interface AiReportListItem {
             <div class="ai-error">
               <mat-icon>error_outline</mat-icon>
               <span>{{ aiError }}</span>
+            </div>
+          }
+          @if (activeReport && !aiLoading && isReportStale()) {
+            <div class="stale-report-banner">
+              <mat-icon class="stale-icon">update</mat-icon>
+              <span>Risk data has been updated since this report was generated. Generate an updated report to reflect the latest analysis.</span>
             </div>
           }
           @if (activeReport && !aiLoading) {
@@ -492,6 +498,27 @@ interface AiReportListItem {
       margin: 0;
     }
 
+    .stale-report-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #92400e;
+      margin-bottom: 16px;
+    }
+
+    .stale-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #d97706;
+      flex-shrink: 0;
+    }
+
     /* Report History Card */
     .report-history-card {
       padding: 24px !important;
@@ -755,6 +782,11 @@ export class RiskDashboardComponent implements OnInit, OnDestroy {
 
   navigateToGroup(groupKey: string) {
     this.router.navigate(['/risk/groups', groupKey]);
+  }
+
+  isReportStale(): boolean {
+    if (!this.activeReport || !this.lastRunAt) return false;
+    return new Date(this.lastRunAt) > new Date(this.activeReport.generatedAt);
   }
 
   countByRisk(state: string): number {
