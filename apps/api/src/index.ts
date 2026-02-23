@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import morgan from 'morgan';
 import { authRouter } from './routes/auth.js';
 import { employeeRouter } from './routes/employees.js';
 import { payDecisionRouter } from './routes/pay-decisions.js';
@@ -30,6 +31,7 @@ app.use(cors({
   origin: corsOrigin,
   credentials: true,
 }));
+app.use(morgan('dev'));
 app.use(express.json());
 
 // Routes

@@ -174,16 +174,34 @@ export async function bulkClassifyRoles(
   let failed = 0;
   const errors: string[] = [];
 
-  for (const classification of classifications) {
-    const result = await classifyRoleWithAI(classification.id, organizationId);
-    if (result.success) {
-      successful++;
-    } else {
-      failed++;
-      errors.push(`${classification.roleTitle}: ${result.error}`);
+  console.log(`[Classification] Starting bulk AI classification for ${classifications.length} roles...`);
+
+  // Process in parallel batches to avoid rate limits while reducing total time
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < classifications.length; i += BATCH_SIZE) {
+    const batch = classifications.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(classifications.length / BATCH_SIZE);
+    console.log(`[Classification] Batch ${batchNum}/${totalBatches}: classifying ${batch.map((c) => c.roleTitle).join(', ')}`);
+
+    const results = await Promise.all(
+      batch.map((c) => classifyRoleWithAI(c.id, organizationId)),
+    );
+
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
+      if (result.success) {
+        successful++;
+        console.log(`[Classification] ✓ ${batch[j]!.roleTitle}`);
+      } else {
+        failed++;
+        errors.push(`${batch[j]!.roleTitle}: ${result.error}`);
+        console.warn(`[Classification] ✗ ${batch[j]!.roleTitle}: ${result.error}`);
+      }
     }
   }
 
+  console.log(`[Classification] Done: ${successful} successful, ${failed} failed`);
   return { processed: classifications.length, successful, failed, errors };
 }
 
