@@ -3,7 +3,8 @@ import { riskGroupQuerySchema, UserRole } from '@cdi/shared';
 import { prisma } from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { startRiskComputation } from '../services/risk-computation.js';
-import { generateRiskAnalysis } from '../services/risk-analysis-ai.js';
+import { generateRiskReport } from '../services/risk-analysis-ai.js';
+import { runRegressionAnalysis } from '../services/regression-engine.js';
 
 export const riskRouter = Router();
 riskRouter.use(authenticate);
@@ -11,7 +12,6 @@ riskRouter.use(authenticate);
 // Trigger a risk run manually
 riskRouter.post('/run', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), async (req, res, next) => {
   try {
-    // Await run creation, computation runs in background
     const riskRunId = await startRiskComputation(req.user!.organizationId!, req.user!.userId);
     res.status(202).json({ riskRunId, status: 'RUNNING' });
   } catch (err) {
@@ -112,7 +112,6 @@ riskRouter.get('/groups/:groupKey', async (req, res, next) => {
       return;
     }
 
-    // Build employee filter matching the comparator group
     const employeeWhere: Record<string, unknown> = {
       organizationId: req.user!.organizationId!,
       country: group.country,
@@ -140,15 +139,11 @@ riskRouter.get('/groups/:groupKey', async (req, res, next) => {
       orderBy: { baseSalary: 'desc' },
     });
 
-    // Fetch recent finalised pay decisions for these employees
     const employeeIds = employees.map((e) => e.id);
     const recentDecisions =
       employeeIds.length > 0
         ? await prisma.payDecision.findMany({
-            where: {
-              employeeId: { in: employeeIds },
-              status: 'FINALISED',
-            },
+            where: { employeeId: { in: employeeIds }, status: 'FINALISED' },
             select: {
               id: true,
               employeeId: true,
@@ -171,7 +166,7 @@ riskRouter.get('/groups/:groupKey', async (req, res, next) => {
   }
 });
 
-// List all AI risk reports
+// List all risk reports
 riskRouter.get('/reports', async (req, res, next) => {
   try {
     const reports = await prisma.aiRiskReport.findMany({
@@ -196,7 +191,7 @@ riskRouter.get('/reports', async (req, res, next) => {
   }
 });
 
-// Get a single AI risk report
+// Get a single risk report
 riskRouter.get('/reports/:id', async (req, res, next) => {
   try {
     const report = await prisma.aiRiskReport.findFirst({
@@ -224,7 +219,7 @@ riskRouter.get('/reports/:id', async (req, res, next) => {
   }
 });
 
-// Generate AI risk analysis report from latest completed run
+// Generate risk analysis report from latest completed run
 riskRouter.post('/analyze', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), async (req, res, next) => {
   try {
     const latestRun = await prisma.riskRun.findFirst({
@@ -235,7 +230,7 @@ riskRouter.post('/analyze', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), asyn
       },
     });
     if (!latestRun) {
-      res.status(404).json({ error: 'No completed risk runs to analyze' });
+      res.status(404).json({ error: 'No completed risk runs to analyse' });
       return;
     }
 
@@ -247,37 +242,125 @@ riskRouter.post('/analyze', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), asyn
       return;
     }
 
-    // Get org name for context
     const org = await prisma.organization.findUnique({
       where: { id: req.user!.organizationId! },
       select: { name: true },
     });
 
-    const report = await generateRiskAnalysis(groups, org?.name);
+    const report = await generateRiskReport(groups, org?.name);
     if (!report) {
-      res.status(503).json({ error: 'AI analysis unavailable. Ensure Ollama is running.' });
+      res.status(422).json({ error: 'Unable to generate report — no groups available' });
       return;
     }
 
-    // Persist the report to DB
     const saved = await prisma.aiRiskReport.create({
       data: {
         riskRunId: latestRun.id,
         organizationId: req.user!.organizationId!,
-        summary: report.summary,
+        summary: JSON.stringify(report.reportData),
+        reportData: report.reportData as object,
         model: report.model,
       },
     });
 
     res.json({
       id: saved.id,
-      summary: report.summary,
+      summary: saved.summary,
+      reportData: saved.reportData,
       generatedAt: saved.generatedAt.toISOString(),
       model: report.model,
       riskRunId: latestRun.id,
       importJobId: latestRun.importJobId,
       importJob: latestRun.importJob,
+      riskRun: {
+        id: latestRun.id,
+        startedAt: latestRun.startedAt,
+        finishedAt: latestRun.finishedAt,
+        triggeredBy: latestRun.triggeredBy,
+        importJobId: latestRun.importJobId,
+        importJob: latestRun.importJob,
+      },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Regression analysis endpoints
+// ---------------------------------------------------------------------------
+
+// Run regression analysis and persist result
+riskRouter.post(
+  '/regression',
+  authorize(UserRole.ADMIN, UserRole.HR_MANAGER),
+  async (req, res, next) => {
+    try {
+      const orgId = req.user!.organizationId!;
+      const userId = req.user!.userId;
+
+      // Create a run record
+      const run = await prisma.regressionRun.create({
+        data: { organizationId: orgId, triggeredBy: userId, status: 'RUNNING' },
+      });
+
+      try {
+        const result = await runRegressionAnalysis(orgId);
+
+        await prisma.regressionRun.update({
+          where: { id: run.id },
+          data: {
+            status: result.status,
+            message: result.message ?? null,
+            finishedAt: new Date(),
+            resultJson: JSON.stringify(result),
+          },
+        });
+
+        res.json({ id: run.id, ...result });
+      } catch (computeErr) {
+        await prisma.regressionRun.update({
+          where: { id: run.id },
+          data: { status: 'FAILED', message: String(computeErr), finishedAt: new Date() },
+        }).catch(() => {});
+        throw computeErr;
+      }
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Get latest regression run for this org
+riskRouter.get('/regression/latest', async (req, res, next) => {
+  try {
+    const run = await prisma.regressionRun.findFirst({
+      where: { organizationId: req.user!.organizationId! },
+      orderBy: { startedAt: 'desc' },
+    });
+    if (!run) {
+      res.json(null);
+      return;
+    }
+    const result = run.resultJson ? JSON.parse(run.resultJson) : null;
+    res.json({ id: run.id, startedAt: run.startedAt, finishedAt: run.finishedAt, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Get a specific regression run
+riskRouter.get('/regression/:id', async (req, res, next) => {
+  try {
+    const run = await prisma.regressionRun.findFirst({
+      where: { id: req.params['id'], organizationId: req.user!.organizationId! },
+    });
+    if (!run) {
+      res.status(404).json({ error: 'Regression run not found' });
+      return;
+    }
+    const result = run.resultJson ? JSON.parse(run.resultJson) : null;
+    res.json({ id: run.id, startedAt: run.startedAt, finishedAt: run.finishedAt, ...result });
   } catch (err) {
     next(err);
   }

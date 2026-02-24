@@ -9,13 +9,20 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatTabsModule } from '@angular/material/tabs';
 import { Subscription, interval, forkJoin } from 'rxjs';
 import { switchMap, filter, take } from 'rxjs/operators';
 import { ApiService } from '../core/api.service';
+import {
+  RiskReportVisualComponent,
+  StructuredRiskReport,
+} from './risk-report-visual.component';
+import { RiskRegressionComponent } from './risk-regression.component';
 
 interface AiReportListItem {
   id: string;
   summary: string;
+  reportData?: StructuredRiskReport;
   model: string;
   generatedAt: string;
   riskRunId: string;
@@ -42,6 +49,9 @@ interface AiReportListItem {
     MatSelectModule,
     MatFormFieldModule,
     MatProgressBarModule,
+    MatTabsModule,
+    RiskReportVisualComponent,
+    RiskRegressionComponent,
   ],
   template: `
     <div class="page-container">
@@ -90,187 +100,226 @@ interface AiReportListItem {
           </mat-card>
         </div>
 
-        <!-- AI Analysis Section -->
-        <mat-card class="ai-analysis-card">
-          <div class="ai-header">
-            <div class="ai-title-row">
-              <mat-icon class="ai-icon">psychology</mat-icon>
-              <h2>AI Risk Report</h2>
-            </div>
-            <button mat-stroked-button (click)="generateAiReport()" [disabled]="aiLoading">
-              <mat-icon>{{ aiLoading ? 'hourglass_empty' : 'auto_awesome' }}</mat-icon>
-              {{ aiLoading ? 'Generating...' : (reports.length > 0 ? 'Generate Updated Report' : 'Generate Report') }}
-            </button>
-          </div>
-          @if (aiLoading) {
-            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-            <p class="ai-loading-text">Analyzing risk data with AI...</p>
-          }
-          @if (aiError) {
-            <div class="ai-error">
-              <mat-icon>error_outline</mat-icon>
-              <span>{{ aiError }}</span>
-            </div>
-          }
-          @if (activeReport && !aiLoading && isReportStale()) {
-            <div class="stale-report-banner">
-              <mat-icon class="stale-icon">update</mat-icon>
-              <span>Risk data has been updated since this report was generated. Generate an updated report to reflect the latest analysis.</span>
-            </div>
-          }
-          @if (activeReport && !aiLoading) {
-            <div class="ai-report-content" [innerHTML]="renderedReport"></div>
-            <div class="ai-meta">
-              <span>Generated {{ activeReport.generatedAt | date:'medium' }}</span>
-              <span class="ai-model-badge">{{ activeReport.model }}</span>
-              @if (getReportSource(activeReport)) {
-                <span class="ai-source-badge">{{ getReportSource(activeReport) }}</span>
-              }
-            </div>
-          }
-          @if (!activeReport && !aiLoading && !aiError) {
-            <p class="ai-placeholder">Click "Generate Report" to get an AI-powered analysis of the current risk data.</p>
-          }
-        </mat-card>
+        <!-- Tabbed sections -->
+        <mat-tab-group class="content-tabs" animationDuration="150ms">
 
-        <!-- Report History -->
-        @if (reports.length > 0) {
-          <mat-card class="report-history-card">
-            <div class="report-history-header">
-              <div class="ai-title-row">
-                <mat-icon class="history-icon">history</mat-icon>
-                <h2>Report History</h2>
-              </div>
-              <span class="report-count">{{ reports.length }} report{{ reports.length !== 1 ? 's' : '' }}</span>
+          <!-- Report tab -->
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <mat-icon class="tab-icon">bar_chart</mat-icon>
+              Report
+            </ng-template>
+
+            <div class="tab-content">
+              <mat-card class="report-card">
+                <div class="report-header">
+                  <div class="report-title-row">
+                    <mat-icon class="report-icon">bar_chart</mat-icon>
+                    <h2>Risk Analysis Report</h2>
+                  </div>
+                  <div class="report-header-actions">
+                    @if (reports.length > 0) {
+                      <button mat-button (click)="historyExpanded = !historyExpanded">
+                        <mat-icon>history</mat-icon>
+                        History ({{ reports.length }})
+                      </button>
+                    }
+                    <button mat-stroked-button (click)="generateReport()" [disabled]="reportLoading">
+                      <mat-icon>{{ reportLoading ? 'hourglass_empty' : 'refresh' }}</mat-icon>
+                      {{ reportLoading ? 'Generating...' : (reports.length > 0 ? 'Regenerate' : 'Generate Report') }}
+                    </button>
+                  </div>
+                </div>
+
+                @if (reportLoading) {
+                  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+                  <p class="loading-text">Building risk analysis report...</p>
+                }
+
+                @if (reportError) {
+                  <div class="report-error">
+                    <mat-icon>error_outline</mat-icon>
+                    <span>{{ reportError }}</span>
+                  </div>
+                }
+
+                @if (activeReport && !reportLoading && isReportStale()) {
+                  <div class="stale-banner">
+                    <mat-icon class="stale-icon">update</mat-icon>
+                    <span>Risk data has been updated since this report was generated. Regenerate to reflect the latest analysis.</span>
+                  </div>
+                }
+
+                @if (historyExpanded && reports.length > 0) {
+                  <div class="history-panel">
+                    <table mat-table [dataSource]="reports" class="history-table">
+                      <ng-container matColumnDef="generatedAt">
+                        <th mat-header-cell *matHeaderCellDef>Generated</th>
+                        <td mat-cell *matCellDef="let r">{{ r.generatedAt | date:'medium' }}</td>
+                      </ng-container>
+                      <ng-container matColumnDef="model">
+                        <th mat-header-cell *matHeaderCellDef>Source</th>
+                        <td mat-cell *matCellDef="let r">
+                          <span class="model-badge">{{ r.model === 'deterministic' ? 'Deterministic' : r.model }}</span>
+                        </td>
+                      </ng-container>
+                      <ng-container matColumnDef="actions">
+                        <th mat-header-cell *matHeaderCellDef></th>
+                        <td mat-cell *matCellDef="let r">
+                          <button mat-button color="primary" (click)="viewReport(r); $event.stopPropagation()">
+                            <mat-icon>visibility</mat-icon>
+                            {{ activeReport?.id === r.id ? 'Viewing' : 'View' }}
+                          </button>
+                        </td>
+                      </ng-container>
+                      <tr mat-header-row *matHeaderRowDef="historyColumns"></tr>
+                      <tr mat-row *matRowDef="let row; columns: historyColumns;"
+                          class="clickable-row"
+                          [class.active-row]="activeReport?.id === row.id"
+                          (click)="viewReport(row)"></tr>
+                    </table>
+                  </div>
+                }
+
+                @if (activeReport && !reportLoading) {
+                  <app-risk-report-visual
+                    [reportData]="activeReportData"
+                    [generatedAt]="activeReport.generatedAt"
+                    [model]="activeReport.model"
+                    [aiEnhanced]="activeReport.model !== 'deterministic'"
+                  />
+                  <div class="report-meta">
+                    <span>Generated {{ activeReport.generatedAt | date:'medium' }}</span>
+                    <span class="model-badge">{{ activeReport.model === 'deterministic' ? 'Deterministic' : activeReport.model }}</span>
+                  </div>
+                }
+
+                @if (!activeReport && !reportLoading && !reportError) {
+                  <div class="report-placeholder">
+                    <mat-icon class="placeholder-icon">analytics</mat-icon>
+                    <p>Click <strong>Generate Report</strong> to build a structured risk analysis from the current data.</p>
+                    <p class="placeholder-sub">Works without AI configuration — AI enriches the narrative if configured.</p>
+                  </div>
+                }
+              </mat-card>
             </div>
-            <table mat-table [dataSource]="reports" class="report-table">
-              <ng-container matColumnDef="generatedAt">
-                <th mat-header-cell *matHeaderCellDef>Generated</th>
-                <td mat-cell *matCellDef="let r">{{ r.generatedAt | date:'medium' }}</td>
-              </ng-container>
-              <ng-container matColumnDef="model">
-                <th mat-header-cell *matHeaderCellDef>Model</th>
-                <td mat-cell *matCellDef="let r">
-                  <span class="ai-model-badge">{{ r.model }}</span>
-                </td>
-              </ng-container>
-              <ng-container matColumnDef="source">
-                <th mat-header-cell *matHeaderCellDef>Data Source</th>
-                <td mat-cell *matCellDef="let r">
-                  <span class="source-label">{{ getReportSource(r) }}</span>
-                </td>
-              </ng-container>
-              <ng-container matColumnDef="actions">
-                <th mat-header-cell *matHeaderCellDef></th>
-                <td mat-cell *matCellDef="let r">
-                  <button mat-button color="primary" (click)="viewReport(r); $event.stopPropagation()">
-                    <mat-icon>visibility</mat-icon>
-                    {{ activeReport?.id === r.id ? 'Viewing' : 'View' }}
+          </mat-tab>
+
+          <!-- Regression tab -->
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <mat-icon class="tab-icon">show_chart</mat-icon>
+              Regression
+            </ng-template>
+            <div class="tab-content">
+              <app-risk-regression [hasRiskData]="allGroups.length > 0" />
+            </div>
+          </mat-tab>
+
+          <!-- Analysis tab -->
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <mat-icon class="tab-icon">table_chart</mat-icon>
+              Analysis
+            </ng-template>
+            <div class="tab-content">
+              <div class="filter-row">
+                <mat-form-field appearance="outline" class="filter-field">
+                  <mat-label>Country</mat-label>
+                  <mat-select [(ngModel)]="filterCountry" (selectionChange)="applyFilters()">
+                    <mat-option [value]="''">All</mat-option>
+                    @for (c of countryOptions; track c) {
+                      <mat-option [value]="c">{{ c }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="filter-field">
+                  <mat-label>Level</mat-label>
+                  <mat-select [(ngModel)]="filterLevel" (selectionChange)="applyFilters()">
+                    <mat-option [value]="''">All</mat-option>
+                    @for (l of levelOptions; track l) {
+                      <mat-option [value]="l">{{ l }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="filter-field">
+                  <mat-label>Risk State</mat-label>
+                  <mat-select [(ngModel)]="filterRiskState" (selectionChange)="applyFilters()">
+                    <mat-option [value]="''">All</mat-option>
+                    <mat-option value="WITHIN_EXPECTED_RANGE">Within Range</mat-option>
+                    <mat-option value="REQUIRES_REVIEW">Requires Review</mat-option>
+                    <mat-option value="THRESHOLD_ALERT">Threshold Alert</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                @if (filterCountry || filterLevel || filterRiskState) {
+                  <button mat-button (click)="clearFilters()">
+                    <mat-icon>clear</mat-icon>
+                    Clear
                   </button>
-                </td>
-              </ng-container>
-              <tr mat-header-row *matHeaderRowDef="reportColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: reportColumns;"
-                  class="clickable-row"
-                  [class.active-report-row]="activeReport?.id === row.id"
-                  (click)="viewReport(row)"></tr>
-            </table>
-          </mat-card>
-        }
+                }
+              </div>
 
-        <!-- Filters -->
-        <div class="filter-row">
-          <mat-form-field appearance="outline" class="filter-field">
-            <mat-label>Country</mat-label>
-            <mat-select [(ngModel)]="filterCountry" (selectionChange)="applyFilters()">
-              <mat-option [value]="''">All</mat-option>
-              @for (c of countryOptions; track c) {
-                <mat-option [value]="c">{{ c }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="filter-field">
-            <mat-label>Level</mat-label>
-            <mat-select [(ngModel)]="filterLevel" (selectionChange)="applyFilters()">
-              <mat-option [value]="''">All</mat-option>
-              @for (l of levelOptions; track l) {
-                <mat-option [value]="l">{{ l }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="filter-field">
-            <mat-label>Risk State</mat-label>
-            <mat-select [(ngModel)]="filterRiskState" (selectionChange)="applyFilters()">
-              <mat-option [value]="''">All</mat-option>
-              <mat-option value="WITHIN_EXPECTED_RANGE">Within Range</mat-option>
-              <mat-option value="REQUIRES_REVIEW">Requires Review</mat-option>
-              <mat-option value="THRESHOLD_ALERT">Threshold Alert</mat-option>
-            </mat-select>
-          </mat-form-field>
-          @if (filterCountry || filterLevel || filterRiskState) {
-            <button mat-button (click)="clearFilters()">
-              <mat-icon>clear</mat-icon>
-              Clear
-            </button>
-          }
-        </div>
+              <table mat-table [dataSource]="filteredGroups">
+                <ng-container matColumnDef="groupKey">
+                  <th mat-header-cell *matHeaderCellDef>Group</th>
+                  <td mat-cell *matCellDef="let g">
+                    <span class="group-key">{{ g.groupKey }}</span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="country">
+                  <th mat-header-cell *matHeaderCellDef>Country</th>
+                  <td mat-cell *matCellDef="let g">{{ g.country }}</td>
+                </ng-container>
+                <ng-container matColumnDef="jobFamily">
+                  <th mat-header-cell *matHeaderCellDef>Job Family</th>
+                  <td mat-cell *matCellDef="let g">{{ g.jobFamily || g.roleTitleFallback || '\u2014' }}</td>
+                </ng-container>
+                <ng-container matColumnDef="level">
+                  <th mat-header-cell *matHeaderCellDef>Level</th>
+                  <td mat-cell *matCellDef="let g">
+                    <span class="level-badge">{{ g.level }}</span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="gapPct">
+                  <th mat-header-cell *matHeaderCellDef>Gap %</th>
+                  <td mat-cell *matCellDef="let g">
+                    <span class="gap-value" [class.gap-high]="mathAbs(g.gapPct) >= 5" [class.gap-warn]="mathAbs(g.gapPct) >= 4 && mathAbs(g.gapPct) < 5">
+                      {{ g.gapPct > 0 ? '+' : '' }}{{ g.gapPct | number:'1.1-1' }}%
+                    </span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="riskState">
+                  <th mat-header-cell *matHeaderCellDef>Risk State</th>
+                  <td mat-cell *matCellDef="let g">
+                    <span class="risk-chip" [class]="'risk-chip risk-' + g.riskState.toLowerCase()">
+                      {{ formatRiskState(g.riskState) }}
+                    </span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="womenCount">
+                  <th mat-header-cell *matHeaderCellDef>Women</th>
+                  <td mat-cell *matCellDef="let g">{{ g.womenCount }}</td>
+                </ng-container>
+                <ng-container matColumnDef="menCount">
+                  <th mat-header-cell *matHeaderCellDef>Men</th>
+                  <td mat-cell *matCellDef="let g">{{ g.menCount }}</td>
+                </ng-container>
+                <ng-container matColumnDef="notes">
+                  <th mat-header-cell *matHeaderCellDef>Notes</th>
+                  <td mat-cell *matCellDef="let g">
+                    <span class="notes-text">{{ g.notes || '' }}</span>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+                    class="clickable-row"
+                    (click)="navigateToGroup(row.groupKey)"></tr>
+              </table>
+            </div>
+          </mat-tab>
 
-        <table mat-table [dataSource]="filteredGroups">
-          <ng-container matColumnDef="groupKey">
-            <th mat-header-cell *matHeaderCellDef>Group</th>
-            <td mat-cell *matCellDef="let g">
-              <span class="group-key">{{ g.groupKey }}</span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="country">
-            <th mat-header-cell *matHeaderCellDef>Country</th>
-            <td mat-cell *matCellDef="let g">{{ g.country }}</td>
-          </ng-container>
-          <ng-container matColumnDef="jobFamily">
-            <th mat-header-cell *matHeaderCellDef>Job Family</th>
-            <td mat-cell *matCellDef="let g">{{ g.jobFamily || g.roleTitleFallback || '\u2014' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="level">
-            <th mat-header-cell *matHeaderCellDef>Level</th>
-            <td mat-cell *matCellDef="let g">
-              <span class="level-badge">{{ g.level }}</span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="gapPct">
-            <th mat-header-cell *matHeaderCellDef>Gap %</th>
-            <td mat-cell *matCellDef="let g">
-              <span class="gap-value" [class.gap-high]="g.gapPct >= 5" [class.gap-warn]="g.gapPct >= 4 && g.gapPct < 5">
-                {{ g.gapPct | number:'1.1-1' }}%
-              </span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="riskState">
-            <th mat-header-cell *matHeaderCellDef>Risk State</th>
-            <td mat-cell *matCellDef="let g">
-              <span class="risk-chip" [class]="'risk-chip risk-' + g.riskState.toLowerCase()">
-                {{ formatRiskState(g.riskState) }}
-              </span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="womenCount">
-            <th mat-header-cell *matHeaderCellDef>Women</th>
-            <td mat-cell *matCellDef="let g">{{ g.womenCount }}</td>
-          </ng-container>
-          <ng-container matColumnDef="menCount">
-            <th mat-header-cell *matHeaderCellDef>Men</th>
-            <td mat-cell *matCellDef="let g">{{ g.menCount }}</td>
-          </ng-container>
-          <ng-container matColumnDef="notes">
-            <th mat-header-cell *matHeaderCellDef>Notes</th>
-            <td mat-cell *matCellDef="let g">
-              <span class="notes-text">{{ g.notes || '' }}</span>
-            </td>
-          </ng-container>
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns;"
-              class="clickable-row"
-              (click)="navigateToGroup(row.groupKey)"></tr>
-        </table>
+        </mat-tab-group>
+
       } @else {
         <div class="empty-state">
           <mat-icon class="empty-state-icon">monitoring</mat-icon>
@@ -340,17 +389,9 @@ interface AiReportListItem {
       text-align: center;
     }
 
-    .summary-card.green {
-      border-top: 3px solid #10b981;
-    }
-
-    .summary-card.amber {
-      border-top: 3px solid #f59e0b;
-    }
-
-    .summary-card.red {
-      border-top: 3px solid #ef4444;
-    }
+    .summary-card.green { border-top: 3px solid #10b981; }
+    .summary-card.amber { border-top: 3px solid #f59e0b; }
+    .summary-card.red { border-top: 3px solid #ef4444; }
 
     .summary-value {
       font-size: 28px;
@@ -366,48 +407,84 @@ interface AiReportListItem {
       color: #64748b;
     }
 
-    /* AI Analysis Card */
-    .ai-analysis-card {
-      padding: 24px !important;
-      margin-bottom: 24px;
-      border: 1px solid #e0e7ff;
-      background: linear-gradient(135deg, #fafafe 0%, #f5f3ff 100%);
+    /* Tabs */
+    .content-tabs {
+      background: transparent;
+
+      ::ng-deep .mat-mdc-tab-header {
+        margin-bottom: 0;
+        background: #fff;
+        border-radius: 8px 8px 0 0;
+        border: 1px solid #e2e8f0;
+        border-bottom: none;
+      }
+
+      ::ng-deep .mat-mdc-tab-body-wrapper {
+        border: 1px solid #e2e8f0;
+        border-radius: 0 0 8px 8px;
+        background: #fff;
+      }
     }
 
-    .ai-header {
+    .tab-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .tab-content {
+      padding: 24px;
+    }
+
+    /* Report card */
+    .report-card {
+      padding: 24px !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+
+    .report-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 16px;
     }
 
-    .ai-title-row {
+    .report-title-row {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .ai-title-row h2 {
+    .report-title-row h2 {
       font-size: 18px;
       font-weight: 600;
       color: #0f172a;
       margin: 0;
     }
 
-    .ai-icon {
+    .report-icon {
       color: #6366f1;
       font-size: 22px;
       width: 22px;
       height: 22px;
     }
 
-    .ai-loading-text {
-      font-size: 13px;
-      color: #64748b;
-      margin: 12px 0 0 0;
+    .report-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .ai-error {
+    .loading-text {
+      font-size: 13px;
+      color: #64748b;
+      margin: 10px 0 0 0;
+    }
+
+    .report-error {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -416,89 +493,7 @@ interface AiReportListItem {
       margin-top: 8px;
     }
 
-    .ai-error mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
-    }
-
-    .ai-report-content {
-      font-size: 14px;
-      line-height: 1.7;
-      color: #1e293b;
-      white-space: pre-wrap;
-    }
-
-    :host ::ng-deep .ai-report-content h1,
-    :host ::ng-deep .ai-report-content h2,
-    :host ::ng-deep .ai-report-content h3 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #0f172a;
-      margin: 16px 0 8px 0;
-    }
-
-    :host ::ng-deep .ai-report-content h1:first-child,
-    :host ::ng-deep .ai-report-content h2:first-child {
-      margin-top: 0;
-    }
-
-    :host ::ng-deep .ai-report-content ul,
-    :host ::ng-deep .ai-report-content ol {
-      margin: 4px 0 12px 0;
-      padding-left: 20px;
-    }
-
-    :host ::ng-deep .ai-report-content li {
-      margin-bottom: 4px;
-    }
-
-    :host ::ng-deep .ai-report-content p {
-      margin: 0 0 10px 0;
-    }
-
-    :host ::ng-deep .ai-report-content strong {
-      color: #0f172a;
-    }
-
-    .ai-meta {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px solid #e2e8f0;
-      font-size: 12px;
-      color: #94a3b8;
-    }
-
-    .ai-model-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      background: #e0e7ff;
-      color: #4338ca;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 500;
-    }
-
-    .ai-source-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      background: #ecfdf5;
-      color: #047857;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 500;
-    }
-
-    .ai-placeholder {
-      font-size: 14px;
-      color: #94a3b8;
-      margin: 0;
-    }
-
-    .stale-report-banner {
+    .stale-banner {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -519,54 +514,68 @@ interface AiReportListItem {
       flex-shrink: 0;
     }
 
-    /* Report History Card */
-    .report-history-card {
-      padding: 24px !important;
-      margin-bottom: 24px;
+    /* Report history */
+    .history-panel {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
     }
 
-    .report-history-header {
+    .history-table { width: 100%; }
+
+    .active-row { background: #f5f3ff !important; }
+
+    .model-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #e0e7ff;
+      color: #4338ca;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* Report placeholder */
+    .report-placeholder {
+      text-align: center;
+      padding: 32px 16px;
+      color: #64748b;
+    }
+
+    .placeholder-icon {
+      font-size: 40px;
+      width: 40px;
+      height: 40px;
+      color: #cbd5e1;
+      margin-bottom: 12px;
+    }
+
+    .report-placeholder p { margin: 0 0 6px 0; font-size: 14px; }
+
+    .placeholder-sub { font-size: 12px; color: #94a3b8; }
+
+    .report-meta {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-
-    .history-icon {
-      color: #64748b;
-      font-size: 22px;
-      width: 22px;
-      height: 22px;
-    }
-
-    .report-count {
-      font-size: 13px;
+      gap: 12px;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
       color: #94a3b8;
     }
 
-    .report-table {
-      width: 100%;
-    }
-
-    .source-label {
-      font-size: 13px;
-      color: #475569;
-    }
-
-    .active-report-row {
-      background: #f5f3ff !important;
-    }
-
+    /* Filters & table */
     .filter-row {
       display: flex;
       gap: 12px;
       align-items: center;
       margin-bottom: 16px;
+      margin-top: 0;
     }
 
-    .filter-field {
-      width: 180px;
-    }
+    .filter-field { width: 180px; }
 
     .group-key {
       font-family: 'Inter', monospace;
@@ -589,13 +598,8 @@ interface AiReportListItem {
       font-variant-numeric: tabular-nums;
     }
 
-    .gap-warn {
-      color: #b45309;
-    }
-
-    .gap-high {
-      color: #b91c1c;
-    }
+    .gap-warn { color: #b45309; }
+    .gap-high { color: #b91c1c; }
 
     .notes-text {
       font-size: 12px;
@@ -603,12 +607,34 @@ interface AiReportListItem {
       font-style: italic;
     }
 
-    .clickable-row {
-      cursor: pointer;
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover { background: #f8fafc; }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: #64748b;
     }
 
-    .clickable-row:hover {
-      background: #f8fafc;
+    .empty-state-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      color: #cbd5e1;
+      margin-bottom: 16px;
+    }
+
+    .empty-state-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #374151;
+      margin: 0 0 8px 0;
+    }
+
+    .empty-state-text {
+      font-size: 14px;
+      color: #9ca3af;
+      margin: 0;
     }
   `],
 })
@@ -626,15 +652,16 @@ export class RiskDashboardComponent implements OnInit, OnDestroy {
   countryOptions: string[] = [];
   levelOptions: string[] = [];
 
-  // AI analysis state
+  // Report state
   activeReport: AiReportListItem | null = null;
-  aiLoading = false;
-  aiError: string | null = null;
-  renderedReport = '';
-
-  // Report history
+  activeReportData: StructuredRiskReport | null = null;
+  reportLoading = false;
+  reportError: string | null = null;
   reports: AiReportListItem[] = [];
-  reportColumns = ['generatedAt', 'model', 'source', 'actions'];
+  historyColumns = ['generatedAt', 'model', 'actions'];
+  historyExpanded = false;
+
+  mathAbs = Math.abs;
 
   private pollSub?: Subscription;
 
@@ -663,7 +690,6 @@ export class RiskDashboardComponent implements OnInit, OnDestroy {
       this.applyFilters();
 
       this.reports = data.reports ?? [];
-      // Show the latest report by default if no report is currently active
       if (!this.activeReport && this.reports.length > 0) {
         this.viewReport(this.reports[0]!);
       }
@@ -719,9 +745,8 @@ export class RiskDashboardComponent implements OnInit, OnDestroy {
           this.buildFilterOptions();
           this.applyFilters();
           this.running = false;
-          // Clear active report since data changed
           this.activeReport = null;
-          this.renderedReport = '';
+          this.activeReportData = null;
           this.cdr.detectChanges();
         },
         error: () => {
@@ -731,7 +756,6 @@ export class RiskDashboardComponent implements OnInit, OnDestroy {
         },
       });
 
-    // Safety timeout after 60 seconds
     setTimeout(() => {
       if (this.running) {
         this.pollSub?.unsubscribe();
@@ -741,22 +765,21 @@ export class RiskDashboardComponent implements OnInit, OnDestroy {
     }, 60000);
   }
 
-  generateAiReport() {
-    this.aiLoading = true;
-    this.aiError = null;
+  generateReport() {
+    this.reportLoading = true;
+    this.reportError = null;
     this.cdr.markForCheck();
     this.api.post<AiReportListItem>('/risk/analyze', {}).subscribe({
       next: (report) => {
         this.activeReport = report;
-        this.renderedReport = this.markdownToHtml(report.summary);
-        this.aiLoading = false;
-        // Prepend to report history
+        this.activeReportData = this.extractReportData(report);
+        this.reportLoading = false;
         this.reports = [report, ...this.reports];
         this.cdr.detectChanges();
       },
       error: (err) => {
-        this.aiError = err?.error?.error || 'Failed to generate AI analysis. Ensure Ollama is running.';
-        this.aiLoading = false;
+        this.reportError = err?.error?.error || 'Failed to generate report.';
+        this.reportLoading = false;
         this.cdr.detectChanges();
       },
     });
@@ -764,20 +787,22 @@ export class RiskDashboardComponent implements OnInit, OnDestroy {
 
   viewReport(report: AiReportListItem) {
     this.activeReport = report;
-    this.renderedReport = this.markdownToHtml(report.summary);
-    this.aiError = null;
+    this.activeReportData = this.extractReportData(report);
+    this.reportError = null;
     this.cdr.detectChanges();
   }
 
-  getReportSource(report: AiReportListItem): string {
-    if (report.riskRun?.importJob) {
-      const job = report.riskRun.importJob;
-      return `Import (${job.createdCount ?? 0} created, ${job.updatedCount ?? 0} updated)`;
+  private extractReportData(report: AiReportListItem): StructuredRiskReport | null {
+    if (report.reportData) return report.reportData;
+    if (report.summary) {
+      try {
+        const parsed = JSON.parse(report.summary);
+        if (parsed?.executiveSummary) return parsed as StructuredRiskReport;
+      } catch {
+        // Legacy markdown — cannot render visually
+      }
     }
-    if (report.riskRun?.triggeredBy === 'SYSTEM') {
-      return 'Scheduled';
-    }
-    return 'Manual trigger';
+    return null;
   }
 
   navigateToGroup(groupKey: string) {
@@ -795,28 +820,5 @@ export class RiskDashboardComponent implements OnInit, OnDestroy {
 
   formatRiskState(state: string): string {
     return state.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  }
-
-  /** Simple markdown to HTML for the AI report */
-  private markdownToHtml(md: string): string {
-    return md
-      // Headers
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-      // Bold
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      // Italic
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      // Unordered list items
-      .replace(/^- (.+)$/gm, '<li>$1</li>')
-      // Wrap consecutive <li> in <ul>
-      .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
-      // Numbered list items
-      .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
-      // Paragraphs (lines that aren't already wrapped)
-      .replace(/^(?!<[hulo])((?!<).+)$/gm, '<p>$1</p>')
-      // Clean up empty lines
-      .replace(/\n{2,}/g, '\n');
   }
 }

@@ -152,7 +152,6 @@ dashboardRouter.get('/summary', async (req, res, next) => {
       employees: {
         total: employeeTotal,
         withDecisions: employeesWithDecisions,
-        withoutDecisions: employeeTotal - employeesWithDecisions,
       },
       decisions: {
         total: decisionTotal,

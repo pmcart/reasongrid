@@ -30,9 +30,9 @@ html {
 
 mat-card {
   border-radius: 12px !important;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
-  transition: box-shadow 0.2s ease;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .mat-mdc-button,

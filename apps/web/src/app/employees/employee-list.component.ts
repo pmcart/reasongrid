@@ -62,11 +62,6 @@ interface EmployeeListResponse {
             <span>
               <strong>{{ coverage.withDecisions }}</strong> of <strong>{{ coverage.totalEmployees }}</strong> employees have documented pay decisions
             </span>
-            @if (coverage.withDecisions < coverage.totalEmployees) {
-              <span class="coverage-gap">
-                {{ coverage.totalEmployees - coverage.withDecisions }} without decisions
-              </span>
-            }
           </div>
         }
 

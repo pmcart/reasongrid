@@ -11,7 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService } from '../core/api.service';
 
 interface DashboardSummary {
-  employees: { total: number; withDecisions: number; withoutDecisions: number };
+  employees: { total: number; withDecisions: number };
   decisions: {
     total: number;
     draft: number;
@@ -77,7 +77,7 @@ interface DashboardSummary {
       } @else if (data) {
         <!-- Summary Cards -->
         <div class="summary-grid">
-          <mat-card class="summary-card" (click)="router.navigate(['/employees'])">
+          <mat-card class="summary-card card-people" (click)="router.navigate(['/employees'])">
             <div class="card-icon-row">
               <mat-icon class="card-icon people">people</mat-icon>
             </div>
@@ -85,13 +85,10 @@ interface DashboardSummary {
             <div class="summary-label">Employees</div>
             <div class="summary-sub">
               <span class="sub-good">{{ data.employees.withDecisions }} with decisions</span>
-              @if (data.employees.withoutDecisions > 0) {
-                <span class="sub-neutral">{{ data.employees.withoutDecisions }} without</span>
-              }
             </div>
           </mat-card>
 
-          <mat-card class="summary-card" (click)="router.navigate(['/employees'])">
+          <mat-card class="summary-card card-decisions" (click)="router.navigate(['/employees'])">
             <div class="card-icon-row">
               <mat-icon class="card-icon decisions">gavel</mat-icon>
             </div>
@@ -105,7 +102,7 @@ interface DashboardSummary {
             </div>
           </mat-card>
 
-          <mat-card class="summary-card" (click)="router.navigate(['/risk'])">
+          <mat-card class="summary-card card-risk" (click)="router.navigate(['/risk'])">
             <div class="card-icon-row">
               <mat-icon class="card-icon risk">monitoring</mat-icon>
             </div>
@@ -127,7 +124,7 @@ interface DashboardSummary {
             </div>
           </mat-card>
 
-          <mat-card class="summary-card" (click)="router.navigate(['/rationale-library'])">
+          <mat-card class="summary-card card-rationale" (click)="router.navigate(['/rationale-library'])">
             <div class="card-icon-row">
               <mat-icon class="card-icon rationale">menu_book</mat-icon>
             </div>
@@ -416,14 +413,20 @@ interface DashboardSummary {
     .summary-card {
       padding: 20px !important;
       cursor: pointer;
-      transition: box-shadow 0.15s, transform 0.15s;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
       border-radius: 12px !important;
+      border-top-width: 3px !important;
     }
 
     .summary-card:hover {
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+      transform: translateY(-3px);
     }
+
+    .card-people { border-top-color: #3b82f6 !important; }
+    .card-decisions { border-top-color: #8b5cf6 !important; }
+    .card-risk { border-top-color: #f97316 !important; }
+    .card-rationale { border-top-color: #10b981 !important; }
 
     .card-icon-row {
       margin-bottom: 12px;
