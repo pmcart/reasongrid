@@ -273,13 +273,17 @@ async function main() {
   console.log(`Manager user: ${manager2.email}`);
 
   // --- Salary Ranges ---
+  // Aligned to L-code grades (L2–L6) and the three demo countries (IE, GB, NL).
+  // Engineering in IE and GB is covered; NL and all other job families are intentionally
+  // left uncovered to showcase the salary-range coverage feature in the UI.
   console.log('Seeding salary ranges...');
   const salaryRanges = [
-    { country: 'IE', jobFamily: 'Engineering', level: 'Senior',    currency: 'EUR', min: 75000,  mid: 90000,  max: 105000 },
-    { country: 'IE', jobFamily: 'Engineering', level: 'Mid',       currency: 'EUR', min: 55000,  mid: 65000,  max: 78000  },
-    { country: 'IE', jobFamily: 'Engineering', level: 'Lead',      currency: 'EUR', min: 95000,  mid: 115000, max: 135000 },
-    { country: 'DE', jobFamily: 'Engineering', level: 'Senior',    currency: 'EUR', min: 70000,  mid: 85000,  max: 100000 },
-    { country: 'IE', jobFamily: 'Product',     level: 'Senior',    currency: 'EUR', min: 72000,  mid: 87000,  max: 102000 },
+    { country: 'IE', jobFamily: 'Engineering', level: 'L3', currency: 'EUR', min: 58000,  mid: 70000,  max: 82000  },
+    { country: 'IE', jobFamily: 'Engineering', level: 'L4', currency: 'EUR', min: 82000,  mid: 95000,  max: 110000 },
+    { country: 'IE', jobFamily: 'Engineering', level: 'L5', currency: 'EUR', min: 98000,  mid: 118000, max: 138000 },
+    { country: 'GB', jobFamily: 'Engineering', level: 'L3', currency: 'GBP', min: 60000,  mid: 73000,  max: 86000  },
+    { country: 'GB', jobFamily: 'Engineering', level: 'L4', currency: 'GBP', min: 84000,  mid: 98000,  max: 115000 },
+    { country: 'GB', jobFamily: 'Engineering', level: 'L5', currency: 'GBP', min: 100000, mid: 120000, max: 142000 },
   ];
 
   for (const sr of salaryRanges) {
@@ -299,9 +303,17 @@ async function main() {
   }
 
   // --- Employees ---
+  // 25 demo employees across 8 comparator groups (country + jobFamily + level).
+  // Levels use L-codes to match the CSV import format.
+  // Countries use ISO codes (IE, GB, NL) matching what the import normaliser produces.
+  // Performance ratings match the CSV values exactly.
+  //
+  // Designed-in pay gap signals:
+  //   IE / Engineering / L4  →  male median 92,500 vs female median 87,000  →  ~5.9%  THRESHOLD_ALERT
+  //   GB / Engineering / L4  →  male median 91,000 vs female          85,000  →  ~6.6%  THRESHOLD_ALERT (low sample)
+  //   IE / Engineering / L3  →  male median 65,000 vs female median   63,000  →  ~3.1%  WITHIN_EXPECTED_RANGE
   console.log('Seeding employees...');
 
-  // Helper to create/upsert employee
   async function upsertEmployee(data: {
     employeeId: string;
     roleTitle: string;
@@ -343,162 +355,161 @@ async function main() {
     });
   }
 
-  // IE / Engineering / Senior — 4 male, 3 female
-  // Median male: ~92k, Median female: ~87k => ~5.4% gap (triggers THRESHOLD_ALERT)
+  // IE / Engineering / L4 — 4 male, 3 female
+  // Male median: (92,000+93,000)/2 = 92,500 | Female median: 87,000 → ~5.9% gap → THRESHOLD_ALERT
   const empSr1 = await upsertEmployee({
-    employeeId: 'EMP-001', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
-    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 95000, bonusTarget: 10000,
-    gender: 'Male', hireDate: new Date('2019-03-15'), performanceRating: 'Exceeds',
+    employeeId: 'EMP-S01', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
+    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 96000, bonusTarget: 10000,
+    gender: 'Male', hireDate: new Date('2019-03-15'), performanceRating: 'Exceeds Expectations',
   });
   const empSr2 = await upsertEmployee({
-    employeeId: 'EMP-002', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
-    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 92000,
-    gender: 'Male', hireDate: new Date('2020-06-01'), performanceRating: 'Meets',
+    employeeId: 'EMP-S02', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
+    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 93000,
+    gender: 'Male', hireDate: new Date('2020-06-01'), performanceRating: 'Meets Expectations',
   });
   const empSr3 = await upsertEmployee({
-    employeeId: 'EMP-003', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
-    country: 'IE', location: 'Cork', currency: 'EUR', baseSalary: 89000,
-    gender: 'Male', hireDate: new Date('2021-01-10'), performanceRating: 'Meets',
+    employeeId: 'EMP-S03', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
+    country: 'IE', location: 'Cork', currency: 'EUR', baseSalary: 91000,
+    gender: 'Male', hireDate: new Date('2021-01-10'), performanceRating: 'Meets Expectations',
   });
-  const empSr4 = await upsertEmployee({
-    employeeId: 'EMP-004', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
-    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 91000,
-    gender: 'Male', hireDate: new Date('2020-09-01'), performanceRating: 'Exceeds',
+  await upsertEmployee({
+    employeeId: 'EMP-S04', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
+    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 92000,
+    gender: 'Male', hireDate: new Date('2020-09-01'), performanceRating: 'Exceeds Expectations',
   });
   const empSr5 = await upsertEmployee({
-    employeeId: 'EMP-005', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
+    employeeId: 'EMP-S05', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
     country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 88000, bonusTarget: 8000,
-    gender: 'Female', hireDate: new Date('2019-08-20'), performanceRating: 'Exceeds',
+    gender: 'Female', hireDate: new Date('2019-08-20'), performanceRating: 'Exceeds Expectations',
   });
   const empSr6 = await upsertEmployee({
-    employeeId: 'EMP-006', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
+    employeeId: 'EMP-S06', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
     country: 'IE', location: 'Cork', currency: 'EUR', baseSalary: 87000,
-    gender: 'Female', hireDate: new Date('2020-11-15'), performanceRating: 'Meets',
+    gender: 'Female', hireDate: new Date('2020-11-15'), performanceRating: 'Meets Expectations',
   });
-  const empSr7 = await upsertEmployee({
-    employeeId: 'EMP-007', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
+  await upsertEmployee({
+    employeeId: 'EMP-S07', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
     country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 85000,
-    gender: 'Female', hireDate: new Date('2021-04-01'), performanceRating: 'Meets',
+    gender: 'Female', hireDate: new Date('2021-04-01'), performanceRating: 'Meets Expectations',
   });
 
-  // IE / Engineering / Mid — 3 male, 3 female
-  // Median male: ~65k, Median female: ~63k => ~3.1% gap (WITHIN_EXPECTED_RANGE)
+  // IE / Engineering / L3 — 3 male, 3 female
+  // Male median: 65,000 | Female median: 63,000 → ~3.1% gap → WITHIN_EXPECTED_RANGE
   const empMd1 = await upsertEmployee({
-    employeeId: 'EMP-008', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'Mid',
-    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 68000,
-    gender: 'Male', hireDate: new Date('2021-06-01'), performanceRating: 'Exceeds',
+    employeeId: 'EMP-M01', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'L3',
+    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 67000,
+    gender: 'Male', hireDate: new Date('2021-06-01'), performanceRating: 'Exceeds Expectations',
   });
-  const empMd2 = await upsertEmployee({
-    employeeId: 'EMP-009', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'Mid',
+  await upsertEmployee({
+    employeeId: 'EMP-M02', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'L3',
     country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 65000,
-    gender: 'Male', hireDate: new Date('2022-01-15'), performanceRating: 'Meets',
+    gender: 'Male', hireDate: new Date('2022-01-15'), performanceRating: 'Meets Expectations',
   });
-  const empMd3 = await upsertEmployee({
-    employeeId: 'EMP-010', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'Mid',
-    country: 'IE', location: 'Cork', currency: 'EUR', baseSalary: 62000,
-    gender: 'Male', hireDate: new Date('2022-09-01'), performanceRating: 'Meets',
+  await upsertEmployee({
+    employeeId: 'EMP-M03', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'L3',
+    country: 'IE', location: 'Cork', currency: 'EUR', baseSalary: 63000,
+    gender: 'Male', hireDate: new Date('2022-09-01'), performanceRating: 'Meets Expectations',
   });
   const empMd4 = await upsertEmployee({
-    employeeId: 'EMP-011', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'Mid',
-    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 64000,
-    gender: 'Female', hireDate: new Date('2021-08-15'), performanceRating: 'Exceeds',
+    employeeId: 'EMP-M04', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'L3',
+    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 65000,
+    gender: 'Female', hireDate: new Date('2021-08-15'), performanceRating: 'Exceeds Expectations',
   });
-  const empMd5 = await upsertEmployee({
-    employeeId: 'EMP-012', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'Mid',
+  await upsertEmployee({
+    employeeId: 'EMP-M05', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'L3',
     country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 63000,
-    gender: 'Female', hireDate: new Date('2022-03-01'), performanceRating: 'Meets',
-  });
-  const empMd6 = await upsertEmployee({
-    employeeId: 'EMP-013', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'Mid',
-    country: 'IE', location: 'Cork', currency: 'EUR', baseSalary: 60000,
-    gender: 'Female', hireDate: new Date('2023-01-10'), performanceRating: 'Developing',
-  });
-
-  // DE / Engineering / Senior — small group for cross-country comparison
-  const empDe1 = await upsertEmployee({
-    employeeId: 'EMP-014', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
-    country: 'DE', location: 'Berlin', currency: 'EUR', baseSalary: 88000,
-    gender: 'Male', hireDate: new Date('2020-04-01'), performanceRating: 'Meets',
-  });
-  const empDe2 = await upsertEmployee({
-    employeeId: 'EMP-015', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
-    country: 'DE', location: 'Munich', currency: 'EUR', baseSalary: 84000,
-    gender: 'Female', hireDate: new Date('2021-02-01'), performanceRating: 'Exceeds',
-  });
-  const empDe3 = await upsertEmployee({
-    employeeId: 'EMP-016', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
-    country: 'DE', location: 'Berlin', currency: 'EUR', baseSalary: 86000,
-    gender: 'Male', hireDate: new Date('2020-10-15'), performanceRating: 'Exceeds',
-  });
-
-  // IE / Product / Senior — different job family
-  const empProd1 = await upsertEmployee({
-    employeeId: 'EMP-017', roleTitle: 'Senior Product Manager', jobFamily: 'Product', level: 'Senior',
-    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 92000,
-    gender: 'Female', hireDate: new Date('2019-11-01'), performanceRating: 'Exceeds',
-  });
-  const empProd2 = await upsertEmployee({
-    employeeId: 'EMP-018', roleTitle: 'Senior Product Manager', jobFamily: 'Product', level: 'Senior',
-    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 89000,
-    gender: 'Male', hireDate: new Date('2020-05-15'), performanceRating: 'Meets',
-  });
-
-  // FR / Engineering / Senior — NO salary range defined (showcases uncovered groups)
-  await upsertEmployee({
-    employeeId: 'EMP-019', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
-    country: 'FR', location: 'Paris', currency: 'EUR', baseSalary: 78000,
-    gender: 'Male', hireDate: new Date('2021-03-01'), performanceRating: 'Meets',
+    gender: 'Female', hireDate: new Date('2022-03-01'), performanceRating: 'Meets Expectations',
   });
   await upsertEmployee({
-    employeeId: 'EMP-020', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'Senior',
-    country: 'FR', location: 'Lyon', currency: 'EUR', baseSalary: 74000,
-    gender: 'Female', hireDate: new Date('2022-01-15'), performanceRating: 'Exceeds',
+    employeeId: 'EMP-M06', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'L3',
+    country: 'IE', location: 'Cork', currency: 'EUR', baseSalary: 62000,
+    gender: 'Female', hireDate: new Date('2023-01-10'), performanceRating: 'Below Expectations',
   });
 
-  // IE / Design / Mid — NO salary range defined
+  // GB / Engineering / L4 — 2 male, 1 female
+  // Male median: 91,000 | Female: 85,000 → ~6.6% gap → THRESHOLD_ALERT (low sample flagged)
+  const empGb1 = await upsertEmployee({
+    employeeId: 'EMP-GB01', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
+    country: 'GB', location: 'London', currency: 'GBP', baseSalary: 93000,
+    gender: 'Male', hireDate: new Date('2020-04-01'), performanceRating: 'Exceeds Expectations',
+  });
   await upsertEmployee({
-    employeeId: 'EMP-021', roleTitle: 'UX Designer', jobFamily: 'Design', level: 'Mid',
+    employeeId: 'EMP-GB02', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
+    country: 'GB', location: 'Manchester', currency: 'GBP', baseSalary: 89000,
+    gender: 'Male', hireDate: new Date('2020-10-15'), performanceRating: 'Meets Expectations',
+  });
+  await upsertEmployee({
+    employeeId: 'EMP-GB03', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
+    country: 'GB', location: 'London', currency: 'GBP', baseSalary: 85000,
+    gender: 'Female', hireDate: new Date('2021-02-01'), performanceRating: 'Exceeds Expectations',
+  });
+
+  // IE / Finance / L3 — 1 male, 1 female — no salary range defined for Finance
+  await upsertEmployee({
+    employeeId: 'EMP-FIN01', roleTitle: 'Senior Finance Analyst', jobFamily: 'Finance', level: 'L3',
+    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 57000,
+    gender: 'Male', hireDate: new Date('2020-05-15'), performanceRating: 'Meets Expectations',
+  });
+  await upsertEmployee({
+    employeeId: 'EMP-FIN02', roleTitle: 'Senior Finance Analyst', jobFamily: 'Finance', level: 'L3',
+    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 59000,
+    gender: 'Female', hireDate: new Date('2019-11-01'), performanceRating: 'Exceeds Expectations',
+  });
+
+  // NL / Engineering / L4 — 1 male, 1 female — no salary range defined for NL (showcases uncovered groups)
+  await upsertEmployee({
+    employeeId: 'EMP-NL01', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
+    country: 'NL', location: 'Amsterdam', currency: 'EUR', baseSalary: 88000,
+    gender: 'Male', hireDate: new Date('2020-04-01'), performanceRating: 'Meets Expectations',
+  });
+  await upsertEmployee({
+    employeeId: 'EMP-NL02', roleTitle: 'Senior Software Engineer', jobFamily: 'Engineering', level: 'L4',
+    country: 'NL', location: 'Amsterdam', currency: 'EUR', baseSalary: 84000,
+    gender: 'Female', hireDate: new Date('2021-02-01'), performanceRating: 'Exceeds Expectations',
+  });
+
+  // IE / Sales / L3 — 1 male, 1 female — no salary range defined for Sales
+  await upsertEmployee({
+    employeeId: 'EMP-SA01', roleTitle: 'Account Executive', jobFamily: 'Sales', level: 'L3',
     country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 58000,
-    gender: 'Female', hireDate: new Date('2022-06-01'), performanceRating: 'Meets',
+    gender: 'Male', hireDate: new Date('2021-03-01'), performanceRating: 'Meets Expectations',
   });
   await upsertEmployee({
-    employeeId: 'EMP-022', roleTitle: 'Product Designer', jobFamily: 'Design', level: 'Mid',
-    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 61000,
-    gender: 'Male', hireDate: new Date('2021-09-15'), performanceRating: 'Exceeds',
-  });
-
-  // DE / Engineering / Mid — NO salary range defined
-  await upsertEmployee({
-    employeeId: 'EMP-023', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'Mid',
-    country: 'DE', location: 'Berlin', currency: 'EUR', baseSalary: 62000,
-    gender: 'Female', hireDate: new Date('2023-02-01'), performanceRating: 'Meets',
-  });
-  await upsertEmployee({
-    employeeId: 'EMP-024', roleTitle: 'Software Engineer', jobFamily: 'Engineering', level: 'Mid',
-    country: 'DE', location: 'Munich', currency: 'EUR', baseSalary: 65000,
-    gender: 'Male', hireDate: new Date('2022-08-01'), performanceRating: 'Meets',
+    employeeId: 'EMP-SA02', roleTitle: 'Account Executive', jobFamily: 'Sales', level: 'L3',
+    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 57000,
+    gender: 'Female', hireDate: new Date('2020-12-01'), performanceRating: 'Meets Expectations',
   });
 
-  // IE / Product / Mid — NO salary range defined
+  // GB / Finance / L4 — 1 male, 1 female — no salary range defined for Finance
   await upsertEmployee({
-    employeeId: 'EMP-025', roleTitle: 'Product Manager', jobFamily: 'Product', level: 'Mid',
-    country: 'IE', location: 'Dublin', currency: 'EUR', baseSalary: 67000,
-    gender: 'Male', hireDate: new Date('2022-04-01'), performanceRating: 'Meets',
+    employeeId: 'EMP-GBF01', roleTitle: 'Finance Manager', jobFamily: 'Finance', level: 'L4',
+    country: 'GB', location: 'London', currency: 'GBP', baseSalary: 80000,
+    gender: 'Male', hireDate: new Date('2018-06-01'), performanceRating: 'Meets Expectations',
+  });
+  await upsertEmployee({
+    employeeId: 'EMP-GBF02', roleTitle: 'Finance Manager', jobFamily: 'Finance', level: 'L4',
+    country: 'GB', location: 'London', currency: 'GBP', baseSalary: 76000,
+    gender: 'Female', hireDate: new Date('2019-02-01'), performanceRating: 'Exceeds Expectations',
+  });
+
+  // IE / Engineering / L2 — junior, showcases the lowest grade band
+  await upsertEmployee({
+    employeeId: 'EMP-JR01', roleTitle: 'Junior Software Engineer', jobFamily: 'Engineering', level: 'L2',
+    country: 'IE', location: 'Cork', currency: 'EUR', baseSalary: 44000,
+    gender: 'Female', hireDate: new Date('2023-03-07'), performanceRating: 'Meets Expectations',
   });
 
   console.log(`  Created/verified 25 employees`);
 
   // --- FINALISED Pay Decisions ---
-  // These provide historical consistency data and demonstrate the full workflow
+  // These provide historical consistency data and demonstrate the full workflow.
   console.log('Seeding pay decisions...');
 
-  // Look up rationale definitions for linking
   const ratDefs = await prisma.rationaleDefinition.findMany({
     where: { organizationId: org.id, version: 1 },
   });
   const ratByCode = new Map(ratDefs.map(r => [r.code, r]));
 
-  // Helper to create a finalised pay decision with rationales
   async function createFinalisedDecision(data: {
     employeeId: string;
     decisionType: 'ANNUAL_INCREASE' | 'PROMOTION' | 'ADJUSTMENT' | 'NEW_HIRE';
@@ -510,7 +521,6 @@ async function main() {
     ownerId: string;
     approverId: string;
   }) {
-    // Check if a decision already exists for this employee+type+date
     const existing = await prisma.payDecision.findFirst({
       where: {
         employeeId: data.employeeId,
@@ -541,7 +551,6 @@ async function main() {
       },
     });
 
-    // Attach rationales with snapshots
     for (const code of data.rationaleCodes) {
       const ratDef = ratByCode.get(code);
       if (!ratDef) continue;
@@ -563,12 +572,12 @@ async function main() {
     return decision;
   }
 
-  // Annual increases for Senior engineers (recent — within last 12 months)
+  // Annual increases — IE Engineering L4 (the gap group)
   await createFinalisedDecision({
     employeeId: empSr1.id, decisionType: 'ANNUAL_INCREASE',
     effectiveDate: new Date('2025-07-01'),
-    payBeforeBase: 90000, payAfterBase: 95000,
-    supportingContext: 'Annual review: strong delivery on platform migration project. 5.6% increase reflects sustained exceeds-level performance.',
+    payBeforeBase: 90000, payAfterBase: 96000,
+    supportingContext: 'Annual review: strong delivery on platform migration project. 6.7% increase reflects sustained exceeds-level performance.',
     rationaleCodes: ['PERFORMANCE_HISTORY', 'SENIORITY_TENURE'],
     ownerId: manager1.id, approverId: hrManager.id,
   });
@@ -576,8 +585,8 @@ async function main() {
   await createFinalisedDecision({
     employeeId: empSr2.id, decisionType: 'ANNUAL_INCREASE',
     effectiveDate: new Date('2025-07-01'),
-    payBeforeBase: 89000, payAfterBase: 92000,
-    supportingContext: 'Annual review: consistent delivery across all objectives. 3.4% increase aligned with meets-expectations band.',
+    payBeforeBase: 89000, payAfterBase: 93000,
+    supportingContext: 'Annual review: consistent delivery across all objectives. 4.5% increase aligned with meets-expectations band.',
     rationaleCodes: ['PERFORMANCE_HISTORY', 'INTERNAL_EQUITY_ALIGNMENT'],
     ownerId: manager1.id, approverId: hrManager.id,
   });
@@ -586,7 +595,7 @@ async function main() {
     employeeId: empSr5.id, decisionType: 'ANNUAL_INCREASE',
     effectiveDate: new Date('2025-07-01'),
     payBeforeBase: 84000, payAfterBase: 88000,
-    supportingContext: 'Annual review: led technical design of new API gateway. 4.8% increase recognises exceeds-level contribution and addresses internal equity gap.',
+    supportingContext: 'Annual review: led technical design of new API gateway. 4.8% increase recognises exceeds-level contribution and partially addresses internal equity position.',
     rationaleCodes: ['PERFORMANCE_HISTORY', 'INTERNAL_EQUITY_ALIGNMENT', 'SCOPE_OF_ROLE'],
     ownerId: manager1.id, approverId: hrManager.id,
   });
@@ -600,11 +609,11 @@ async function main() {
     ownerId: manager2.id, approverId: hrManager.id,
   });
 
-  // Annual increases for Mid engineers
+  // Annual increases — IE Engineering L3
   await createFinalisedDecision({
     employeeId: empMd1.id, decisionType: 'ANNUAL_INCREASE',
     effectiveDate: new Date('2025-07-01'),
-    payBeforeBase: 64000, payAfterBase: 68000,
+    payBeforeBase: 63000, payAfterBase: 67000,
     supportingContext: 'Annual review: took on mentoring responsibilities and delivered key features independently. 6.3% increase reflects exceeds-level performance.',
     rationaleCodes: ['PERFORMANCE_HISTORY', 'SCOPE_OF_ROLE'],
     ownerId: manager1.id, approverId: hrManager.id,
@@ -613,28 +622,28 @@ async function main() {
   await createFinalisedDecision({
     employeeId: empMd4.id, decisionType: 'ANNUAL_INCREASE',
     effectiveDate: new Date('2025-07-01'),
-    payBeforeBase: 61000, payAfterBase: 64000,
-    supportingContext: 'Annual review: consistently exceeded sprint targets with high quality output. 4.9% increase reflects strong performance.',
+    payBeforeBase: 62000, payAfterBase: 65000,
+    supportingContext: 'Annual review: consistently exceeded sprint targets with high quality output. 4.8% increase reflects strong performance.',
     rationaleCodes: ['PERFORMANCE_HISTORY', 'INTERNAL_EQUITY_ALIGNMENT'],
     ownerId: manager2.id, approverId: hrManager.id,
   });
 
-  // A promotion decision (Mid -> Senior)
+  // Promotion — L3 to L4 (IE Engineering)
   await createFinalisedDecision({
     employeeId: empSr3.id, decisionType: 'PROMOTION',
     effectiveDate: new Date('2025-04-01'),
-    payBeforeBase: 72000, payAfterBase: 89000,
-    supportingContext: 'Promoted from Mid to Senior following 18 months of Senior-level contributions. New salary positions at P40 of Senior range.',
+    payBeforeBase: 72000, payAfterBase: 91000,
+    supportingContext: 'Promoted from L3 to L4 following 18 months of senior-level contributions. New salary positions at P40 of the L4 range for IE Engineering.',
     rationaleCodes: ['PROMOTION_HIGHER_RESPONSIBILITY', 'RELEVANT_EXPERIENCE', 'SCOPE_OF_ROLE'],
     ownerId: manager1.id, approverId: hrManager.id,
   });
 
-  // A market adjustment
+  // Market adjustment — GB Engineering L4
   await createFinalisedDecision({
-    employeeId: empDe1.id, decisionType: 'ADJUSTMENT',
+    employeeId: empGb1.id, decisionType: 'ADJUSTMENT',
     effectiveDate: new Date('2025-09-01'),
-    payBeforeBase: 83000, payAfterBase: 88000,
-    supportingContext: 'Market adjustment to align with updated Berlin engineering benchmarks. Retention risk flagged by hiring manager.',
+    payBeforeBase: 88000, payAfterBase: 93000,
+    supportingContext: 'Market adjustment to align with updated London engineering benchmarks. Retention risk flagged following competitive offer received by employee.',
     rationaleCodes: ['MARKET_CONDITIONS', 'GEOGRAPHIC_FACTORS'],
     ownerId: manager2.id, approverId: hrManager.id,
   });
@@ -758,9 +767,10 @@ Placement within the range is based on objective criteria including experience a
   console.log('  hr@cdi.local / HrManager123! (HR_MANAGER)');
   console.log('  manager1@cdi.local / Manager123! (MANAGER)');
   console.log('  manager2@cdi.local / Manager123! (MANAGER)');
-  console.log(`  25 employees across 8 comparator groups`);
-  console.log(`  5 salary ranges defined (4 groups uncovered — showcases coverage feature)`);
+  console.log(`  25 employees across 8 comparator groups (IE/GB/NL, L2–L4, Engineering/Finance/Sales)`);
+  console.log(`  6 salary ranges defined for IE and GB Engineering (NL and other job families uncovered — showcases coverage feature)`);
   console.log(`  8 finalised pay decisions with rationale links`);
+  console.log(`  Gap signals: IE/Eng/L4 ~5.9% THRESHOLD_ALERT | GB/Eng/L4 ~6.6% THRESHOLD_ALERT | IE/Eng/L3 ~3.1% WITHIN_RANGE`);
 }
 
 main()
