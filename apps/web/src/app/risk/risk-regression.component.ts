@@ -60,25 +60,25 @@ interface RegressionResult {
     <div class="regression-section">
       <div class="regression-header">
         <div class="regression-title-row">
-          <mat-icon class="regression-icon">function</mat-icon>
+          <mat-icon class="regression-icon">manage_search</mat-icon>
           <div>
-            <h2>Workforce Regression Analysis</h2>
-            <p class="regression-subtitle">Controlled OLS regression identifying unexplained gender pay gaps</p>
+            <h2>Controlled Pay Gap Analysis</h2>
+            <p class="regression-subtitle">Compares pay between women and men in equivalent roles, adjusting for seniority, location, and tenure</p>
           </div>
         </div>
         <button mat-stroked-button (click)="runAnalysis()" [disabled]="loading || !hasRiskData">
           <mat-icon>{{ loading ? 'hourglass_empty' : 'play_arrow' }}</mat-icon>
-          {{ loading ? 'Running...' : (result ? 'Re-run Analysis' : 'Run Analysis') }}
+          {{ loading ? 'Analysing...' : (result ? 'Re-run' : 'Run Analysis') }}
         </button>
       </div>
 
       @if (!hasRiskData && !loading) {
-        <p class="regression-placeholder">Run a risk analysis first to enable regression.</p>
+        <p class="regression-placeholder">Run a risk analysis first to enable this.</p>
       }
 
       @if (loading) {
         <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-        <p class="loading-text">Running controlled regression — controlling for tenure, level, country, job family, and performance...</p>
+        <p class="loading-text">Comparing pay across equivalent roles...</p>
       }
 
       @if (error) {
@@ -89,175 +89,198 @@ interface RegressionResult {
       }
 
       @if (result && !loading) {
-        <!-- Insufficient data or computation error -->
+
+        <!-- Insufficient data state -->
         @if (result.status !== 'COMPLETED') {
-          <div class="insufficient-state">
-            <mat-icon class="insufficient-icon">info</mat-icon>
+          <div class="info-box info-amber">
+            <mat-icon>info</mat-icon>
             <div>
-              <p class="insufficient-title">{{ result.status === 'INSUFFICIENT_DATA' ? 'Insufficient Data' : 'Computation Error' }}</p>
-              <p class="insufficient-msg">{{ result.message }}</p>
-              @if (result.sampleSize !== undefined) {
-                <p class="insufficient-detail">Employees with recognised gender: {{ result.sampleSize }} / {{ result.sampleSize + result.excludedCount }}</p>
-              }
+              <p class="info-title">Not enough data to run this analysis</p>
+              <p class="info-body">{{ result.message }}</p>
+              <p class="info-hint">This analysis needs at least 20 employees with gender data recorded.</p>
             </div>
           </div>
         }
 
         @if (result.status === 'COMPLETED') {
-          <!-- A. Summary cards -->
-          <div class="regression-stats">
-            <div class="reg-stat-card" [class.gap-significant]="result.isStatSignificant && (result.genderEffectPct ?? 0) < 0">
-              <div class="reg-stat-value" [class.value-alert]="result.isStatSignificant && (result.genderEffectPct ?? 0) < 0">
-                {{ result.genderEffectPct !== undefined ? (result.genderEffectPct | number:'1.1-1') + '%' : 'N/A' }}
-              </div>
-              <div class="reg-stat-label">Unexplained Gender Gap</div>
-              <div class="reg-stat-sub">After controlling for tenure, level, location</div>
-            </div>
 
-            <div class="reg-stat-card">
-              <div class="sig-badge" [class]="result.isStatSignificant ? 'sig-yes' : 'sig-no'">
-                <mat-icon>{{ result.isStatSignificant ? 'warning' : 'check_circle' }}</mat-icon>
-                {{ result.isStatSignificant ? 'Statistically significant' : 'Not statistically significant' }}
+          <!-- ===== MAIN VERDICT CARD ===== -->
+          <div class="verdict-card" [class]="verdictClass">
+            <div class="verdict-icon-col">
+              <mat-icon class="verdict-icon">{{ verdictIcon }}</mat-icon>
+            </div>
+            <div class="verdict-body">
+              <p class="verdict-headline">{{ verdictHeadline }}</p>
+              <p class="verdict-detail">{{ verdictDetail }}</p>
+              <div class="verdict-chips">
+                <span class="v-chip">
+                  <mat-icon>people</mat-icon>
+                  {{ result.sampleSize }} employees compared
+                </span>
+                <span class="v-chip">
+                  <mat-icon>shield</mat-icon>
+                  {{ confidenceLabel }} confidence
+                </span>
+                <span class="v-chip">
+                  <mat-icon>tune</mat-icon>
+                  Adjusted for {{ controlSummary }}
+                </span>
               </div>
-              <div class="reg-stat-label">Significance</div>
-              <div class="reg-stat-sub">p = {{ result.genderPValue | number:'1.4-4' }} &nbsp;|&nbsp; t = {{ result.genderTStat | number:'1.2-2' }}</div>
             </div>
-
-            <div class="reg-stat-card">
-              <div class="reg-stat-value">{{ result.rSquared !== undefined ? (result.rSquared | number:'1.3-3') : 'N/A' }}</div>
-              <div class="reg-stat-label">R² (model fit)</div>
-              <div class="reg-stat-sub">{{ result.sampleSize }} employees in model</div>
-            </div>
-
-            <div class="reg-stat-card">
-              <div class="reg-stat-value flag-count" [class.has-flags]="(result.flaggedIndividuals?.length ?? 0) > 0">
-                {{ result.flaggedIndividuals?.length ?? 0 }}
+            @if ((result.genderEffectPct ?? 0) !== 0) {
+              <div class="verdict-stat">
+                <span class="verdict-pct" [class.pct-bad]="(result.genderEffectPct ?? 0) < -1">
+                  {{ result.genderEffectPct! > 0 ? '+' : '' }}{{ result.genderEffectPct | number:'1.1-1' }}%
+                </span>
+                <span class="verdict-pct-label">unexplained gap</span>
               </div>
-              <div class="reg-stat-label">Flagged Individuals</div>
-              <div class="reg-stat-sub">Women earning ≥5% below model prediction</div>
-            </div>
+            }
           </div>
 
-          <!-- B. Methodology disclosure -->
-          <div class="methodology-panel" [class.expanded]="methodologyExpanded">
-            <button class="methodology-toggle" (click)="methodologyExpanded = !methodologyExpanded">
-              <mat-icon>{{ methodologyExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
-              Methodology
+          <!-- Confidence explainer (only show if result is ambiguous) -->
+          @if (!result.isStatSignificant && (result.genderEffectPct ?? 0) !== 0) {
+            <div class="info-box info-blue">
+              <mat-icon>info</mat-icon>
+              <p>A gap of {{ result.genderEffectPct | number:'1.1-1' }}% was found, but the dataset is too small to be statistically certain this isn't just random variation. It's worth monitoring as your workforce grows.</p>
+            </div>
+          }
+
+          <!-- ===== EMPLOYEES TO REVIEW ===== -->
+          <div class="review-section">
+            <div class="review-header">
+              <div class="review-title-row">
+                <mat-icon [class]="(result.flaggedIndividuals?.length ?? 0) > 0 ? 'icon-alert' : 'icon-ok'">
+                  {{ (result.flaggedIndividuals?.length ?? 0) > 0 ? 'person_alert' : 'person_check' }}
+                </mat-icon>
+                <h3>Employees to Review</h3>
+                @if ((result.flaggedIndividuals?.length ?? 0) > 0) {
+                  <span class="review-count">{{ result.flaggedIndividuals!.length }}</span>
+                }
+              </div>
+            </div>
+
+            @if ((result.flaggedIndividuals?.length ?? 0) === 0) {
+              <div class="no-flags">
+                <mat-icon>check_circle</mat-icon>
+                <p>No individuals identified — no women in this dataset are earning significantly below what would be expected for their role profile.</p>
+              </div>
+            } @else {
+              <p class="review-intro">
+                These employees earn noticeably less than others in equivalent roles. This doesn't indicate a definite problem, but each warrants a confidential pay review.
+              </p>
+              <div class="review-cards">
+                @for (ind of result.flaggedIndividuals; track ind.employeeDbId) {
+                  <div class="review-card" [class.card-high]="ind.riskLevel === 'HIGH'">
+                    <div class="rc-top">
+                      <div class="rc-id">
+                        <span class="rc-emp-id">{{ ind.employeeExternalId }}</span>
+                        <span class="rc-location">{{ ind.country }}{{ ind.jobFamily ? ' · ' + ind.jobFamily : '' }} · {{ ind.level }}</span>
+                      </div>
+                      <span class="rc-risk-badge" [class.badge-high]="ind.riskLevel === 'HIGH'" [class.badge-medium]="ind.riskLevel === 'MEDIUM'">
+                        {{ ind.riskLevel === 'HIGH' ? 'High priority' : 'Moderate' }}
+                      </span>
+                    </div>
+                    <div class="rc-pay">
+                      <div class="rc-pay-item">
+                        <span class="rc-pay-label">Current pay</span>
+                        <span class="rc-pay-value">{{ ind.currency }} {{ ind.baseSalary | number:'1.0-0' }}</span>
+                      </div>
+                      <div class="rc-pay-arrow">
+                        <mat-icon>arrow_forward</mat-icon>
+                      </div>
+                      <div class="rc-pay-item">
+                        <span class="rc-pay-label">Expected for this role</span>
+                        <span class="rc-pay-value rc-pay-expected">{{ ind.currency }} {{ ind.predictedSalary | number:'1.0-0' }}</span>
+                      </div>
+                      <div class="rc-gap-pill">
+                        -{{ ind.unexplainedGapPct | number:'1.1-1' }}% below expected
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- ===== TECHNICAL DETAILS (collapsed) ===== -->
+          <div class="tech-section">
+            <button class="tech-toggle" (click)="techExpanded = !techExpanded">
+              <mat-icon>{{ techExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+              Technical details
+              <span class="tech-toggle-sub">(for analysts)</span>
             </button>
-            @if (methodologyExpanded) {
-              <div class="methodology-content">
-                <div class="method-row">
-                  <span class="method-label">Dependent variable:</span>
-                  <span class="method-value">{{ result.methodology?.dependentVariable }}</span>
+
+            @if (techExpanded) {
+              <div class="tech-content">
+                <div class="tech-stats-row">
+                  <div class="tech-stat">
+                    <span class="ts-label">Gender coefficient</span>
+                    <span class="ts-value">{{ result.genderCoefficient | number:'1.4-4' }}</span>
+                  </div>
+                  <div class="tech-stat">
+                    <span class="ts-label">T-statistic</span>
+                    <span class="ts-value">{{ result.genderTStat | number:'1.2-2' }}</span>
+                  </div>
+                  <div class="tech-stat">
+                    <span class="ts-label">P-value</span>
+                    <span class="ts-value">{{ result.genderPValue | number:'1.4-4' }}</span>
+                  </div>
+                  <div class="tech-stat">
+                    <span class="ts-label">R²</span>
+                    <span class="ts-value">{{ result.rSquared | number:'1.3-3' }}</span>
+                  </div>
+                  <div class="tech-stat">
+                    <span class="ts-label">Adj. R²</span>
+                    <span class="ts-value">{{ result.adjustedRSquared | number:'1.3-3' }}</span>
+                  </div>
+                  <div class="tech-stat">
+                    <span class="ts-label">Excluded</span>
+                    <span class="ts-value">{{ result.excludedCount }}</span>
+                  </div>
                 </div>
-                <div class="method-row">
-                  <span class="method-label">Level encoding:</span>
-                  <span class="method-value">{{ result.methodology?.levelEncoding }}</span>
-                </div>
-                <div class="method-row">
-                  <span class="method-label">Controls:</span>
-                  <span class="method-value">{{ (result.methodology?.controlVariables ?? []).join(', ') || 'N/A' }}</span>
-                </div>
-                @if ((result.methodology?.notes ?? []).length > 0) {
+
+                @if (keyCoefficients.length > 0) {
+                  <table class="coeff-table">
+                    <thead>
+                      <tr>
+                        <th>Variable</th>
+                        <th>Coefficient</th>
+                        <th>Std Error</th>
+                        <th>T-Stat</th>
+                        <th>P-Value</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (c of keyCoefficients; track c.variable) {
+                        <tr [class.coeff-gender-row]="c.variable === 'isFemale'">
+                          <td class="var-name">{{ formatVarName(c.variable) }}</td>
+                          <td>{{ c.coefficient | number:'1.4-4' }}</td>
+                          <td>{{ c.stdError | number:'1.4-4' }}</td>
+                          <td [class.t-sig]="mathAbs(c.tStat) >= 1.96">{{ c.tStat | number:'1.2-2' }}</td>
+                          <td>{{ c.pValue | number:'1.4-4' }}</td>
+                          <td class="sig-stars">{{ sigStars(c.pValue) }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                  <p class="coeff-note">*** p&lt;0.001 &nbsp; ** p&lt;0.01 &nbsp; * p&lt;0.05</p>
+                }
+
+                @if (result.methodology) {
                   <div class="method-notes">
-                    @for (note of result.methodology?.notes ?? []; track $index) {
+                    <p><strong>Method:</strong> OLS regression on log(baseSalary). Dependent variable: {{ result.methodology.dependentVariable }}.</p>
+                    <p><strong>Controls:</strong> {{ result.methodology.controlVariables.join(', ') || 'none' }}.</p>
+                    @for (note of result.methodology.notes; track $index) {
                       <p>{{ note }}</p>
                     }
                   </div>
                 }
-                <div class="method-disclaimer">
-                  <mat-icon>info</mat-icon>
-                  OLS regression on log(baseSalary). Results are indicative and do not constitute legal findings. Excluded employees ({{ result.excludedCount }}) lacked recognised gender or valid salary data.
-                </div>
               </div>
             }
           </div>
 
-          <!-- C. Key coefficients table -->
-          @if (keyCoefficients.length > 0) {
-            <div class="coeff-section">
-              <h4 class="coeff-title">Key Model Coefficients</h4>
-              <table class="coeff-table">
-                <thead>
-                  <tr>
-                    <th>Variable</th>
-                    <th>Coefficient</th>
-                    <th>Std Error</th>
-                    <th>T-Stat</th>
-                    <th>P-Value</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (c of keyCoefficients; track c.variable) {
-                    <tr [class.coeff-gender-row]="c.variable === 'isFemale'">
-                      <td class="var-name">{{ formatVarName(c.variable) }}</td>
-                      <td class="coeff-val">{{ c.coefficient | number:'1.4-4' }}</td>
-                      <td>{{ c.stdError | number:'1.4-4' }}</td>
-                      <td [class.t-significant]="Math.abs(c.tStat) >= 1.96">{{ c.tStat | number:'1.2-2' }}</td>
-                      <td>{{ c.pValue | number:'1.4-4' }}</td>
-                      <td class="sig-stars">{{ sigStars(c.pValue) }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-              <p class="coeff-note">Significance: *** p&lt;0.001 &nbsp; ** p&lt;0.01 &nbsp; * p&lt;0.05</p>
-            </div>
-          }
-
-          <!-- D. Flagged individuals -->
-          <div class="flagged-section">
-            <h4 class="flagged-title">
-              Flagged Individuals
-              @if ((result.flaggedIndividuals?.length ?? 0) > 0) {
-                <span class="flagged-count">{{ result.flaggedIndividuals!.length }}</span>
-              }
-            </h4>
-
-            @if ((result.flaggedIndividuals?.length ?? 0) === 0) {
-              <div class="no-flags-state">
-                <mat-icon class="no-flags-icon">check_circle</mat-icon>
-                <p>No individuals flagged — no women are earning significantly below their model-predicted salary.</p>
-              </div>
-            } @else {
-              <p class="flagged-intro">
-                The following employees earn at least 5% less than their model-predicted salary after controlling for all observable factors.
-                This does not indicate intentional discrimination but warrants individual pay review.
-              </p>
-              <table class="flagged-table">
-                <thead>
-                  <tr>
-                    <th>Employee ID</th>
-                    <th>Level</th>
-                    <th>Country</th>
-                    <th>Job Family</th>
-                    <th>Actual Salary</th>
-                    <th>Predicted</th>
-                    <th>Gap %</th>
-                    <th>Risk</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (ind of result.flaggedIndividuals; track ind.employeeDbId) {
-                    <tr>
-                      <td class="emp-id">{{ ind.employeeExternalId }}</td>
-                      <td><span class="level-badge">{{ ind.level }}</span></td>
-                      <td>{{ ind.country }}</td>
-                      <td>{{ ind.jobFamily || '—' }}</td>
-                      <td class="salary-val">{{ ind.currency }} {{ ind.baseSalary | number:'1.0-0' }}</td>
-                      <td class="salary-val muted">{{ ind.currency }} {{ ind.predictedSalary | number:'1.0-0' }}</td>
-                      <td class="gap-val">-{{ ind.unexplainedGapPct | number:'1.1-1' }}%</td>
-                      <td>
-                        <span class="risk-chip" [class]="'risk-' + ind.riskLevel.toLowerCase()">{{ ind.riskLevel }}</span>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            }
-          </div>
-
-          @if (result.finishedAt) {
+          @if (result.startedAt) {
             <p class="run-meta">Analysis run: {{ result.startedAt | date:'medium' }}</p>
           }
         }
@@ -270,7 +293,6 @@ interface RegressionResult {
       border: 1px solid #e2e8f0;
       border-radius: 12px;
       padding: 24px;
-      margin-bottom: 24px;
     }
 
     .regression-header {
@@ -278,6 +300,7 @@ interface RegressionResult {
       align-items: flex-start;
       justify-content: space-between;
       margin-bottom: 20px;
+      gap: 16px;
     }
 
     .regression-title-row {
@@ -287,16 +310,16 @@ interface RegressionResult {
     }
 
     .regression-icon {
-      font-size: 28px;
-      width: 28px;
-      height: 28px;
+      font-size: 26px;
+      width: 26px;
+      height: 26px;
       color: #6366f1;
       margin-top: 2px;
       flex-shrink: 0;
     }
 
     .regression-title-row h2 {
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 600;
       color: #0f172a;
       margin: 0 0 3px 0;
@@ -306,18 +329,13 @@ interface RegressionResult {
       font-size: 13px;
       color: #64748b;
       margin: 0;
+      line-height: 1.4;
     }
 
-    .regression-placeholder {
-      font-size: 14px;
+    .regression-placeholder, .loading-text {
+      font-size: 13px;
       color: #94a3b8;
       margin: 0;
-    }
-
-    .loading-text {
-      font-size: 13px;
-      color: #64748b;
-      margin: 10px 0 0 0;
     }
 
     .regression-error {
@@ -326,241 +344,147 @@ interface RegressionResult {
       gap: 8px;
       color: #b91c1c;
       font-size: 14px;
-      margin-top: 8px;
     }
 
-    /* Summary cards */
-    .regression-stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
+    /* Info boxes */
+    .info-box {
+      display: flex;
+      align-items: flex-start;
       gap: 12px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.5;
       margin-bottom: 16px;
     }
 
-    .reg-stat-card {
-      padding: 14px 16px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
+    .info-box mat-icon { flex-shrink: 0; font-size: 20px; width: 20px; height: 20px; margin-top: 1px; }
+
+    .info-amber { background: #fffbeb; border: 1px solid #fcd34d; color: #78350f; }
+    .info-amber mat-icon { color: #d97706; }
+    .info-blue { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .info-blue mat-icon { color: #3b82f6; }
+
+    .info-title { font-weight: 600; margin: 0 0 3px 0; }
+    .info-body { margin: 0 0 4px 0; }
+    .info-hint { font-size: 12px; opacity: 0.75; margin: 0; }
+
+    /* Verdict card */
+    .verdict-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border: 1px solid;
+    }
+
+    .verdict-ok { background: #f0fdf4; border-color: #86efac; }
+    .verdict-warn { background: #fffbeb; border-color: #fcd34d; }
+    .verdict-alert { background: #fff1f2; border-color: #fca5a5; }
+
+    .verdict-icon-col { flex-shrink: 0; padding-top: 2px; }
+
+    .verdict-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+    }
+
+    .verdict-ok .verdict-icon { color: #16a34a; }
+    .verdict-warn .verdict-icon { color: #d97706; }
+    .verdict-alert .verdict-icon { color: #dc2626; }
+
+    .verdict-body { flex: 1; }
+
+    .verdict-headline {
+      font-size: 16px;
+      font-weight: 600;
+      color: #0f172a;
+      margin: 0 0 5px 0;
+      line-height: 1.3;
+    }
+
+    .verdict-detail {
+      font-size: 13px;
+      color: #475569;
+      margin: 0 0 12px 0;
+      line-height: 1.5;
+    }
+
+    .verdict-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .v-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 12px;
+      font-size: 11px;
+      color: #374151;
+    }
+
+    .v-chip mat-icon { font-size: 13px; width: 13px; height: 13px; }
+
+    .verdict-stat {
+      flex-shrink: 0;
+      text-align: center;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.6);
       border-radius: 8px;
     }
 
-    .gap-significant {
-      border-color: #fca5a5;
-      background: #fff1f2;
-    }
-
-    .reg-stat-value {
-      font-size: 24px;
+    .verdict-pct {
+      display: block;
+      font-size: 28px;
       font-weight: 700;
       color: #0f172a;
       line-height: 1;
-      margin-bottom: 5px;
     }
 
-    .value-alert { color: #b91c1c; }
+    .pct-bad { color: #dc2626; }
 
-    .reg-stat-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 2px;
-    }
-
-    .reg-stat-sub {
+    .verdict-pct-label {
       font-size: 11px;
-      color: #94a3b8;
+      color: #64748b;
+      display: block;
+      margin-top: 3px;
+      white-space: nowrap;
     }
 
-    .sig-badge {
+    /* Review section */
+    .review-section {
+      margin-bottom: 20px;
+    }
+
+    .review-header {
+      margin-bottom: 12px;
+    }
+
+    .review-title-row {
       display: flex;
       align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 4px 0;
-      margin-bottom: 5px;
+      gap: 8px;
     }
 
-    .sig-badge mat-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-    }
-
-    .sig-yes { color: #b91c1c; }
-    .sig-no { color: #15803d; }
-
-    .flag-count { font-size: 28px; }
-    .has-flags { color: #b91c1c; }
-
-    /* Insufficient data */
-    .insufficient-state {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 16px;
-      background: #fffbeb;
-      border: 1px solid #fcd34d;
-      border-radius: 8px;
-    }
-
-    .insufficient-icon {
-      color: #d97706;
-      font-size: 22px;
-      width: 22px;
-      height: 22px;
-      flex-shrink: 0;
-    }
-
-    .insufficient-title {
-      font-size: 14px;
+    .review-title-row h3 {
+      font-size: 15px;
       font-weight: 600;
       color: #0f172a;
-      margin: 0 0 4px 0;
-    }
-
-    .insufficient-msg {
-      font-size: 13px;
-      color: #374151;
-      margin: 0 0 4px 0;
-    }
-
-    .insufficient-detail {
-      font-size: 12px;
-      color: #64748b;
       margin: 0;
     }
 
-    /* Methodology */
-    .methodology-panel {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      margin-bottom: 16px;
-    }
+    .icon-alert { color: #dc2626; font-size: 20px; width: 20px; height: 20px; }
+    .icon-ok { color: #16a34a; font-size: 20px; width: 20px; height: 20px; }
 
-    .methodology-toggle {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 10px 14px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      color: #475569;
-      width: 100%;
-      text-align: left;
-    }
-
-    .methodology-content {
-      padding: 0 16px 14px;
-      border-top: 1px solid #e2e8f0;
-    }
-
-    .method-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      font-size: 12px;
-    }
-
-    .method-label { color: #94a3b8; font-weight: 500; min-width: 130px; }
-    .method-value { color: #374151; }
-
-    .method-notes {
-      margin-top: 8px;
-      font-size: 12px;
-      color: #64748b;
-    }
-
-    .method-notes p { margin: 2px 0; }
-
-    .method-disclaimer {
-      display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      margin-top: 10px;
-      padding: 8px 12px;
-      background: #eff6ff;
-      border-radius: 6px;
-      font-size: 11px;
-      color: #1d4ed8;
-    }
-
-    .method-disclaimer mat-icon {
-      font-size: 14px;
-      width: 14px;
-      height: 14px;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-
-    /* Coefficients table */
-    .coeff-section {
-      margin-bottom: 16px;
-    }
-
-    .coeff-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #374151;
-      margin: 0 0 8px 0;
-    }
-
-    .coeff-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
-
-    .coeff-table th {
-      text-align: left;
-      padding: 6px 10px;
-      background: #f8fafc;
-      color: #64748b;
-      font-weight: 500;
-      border-bottom: 1px solid #e2e8f0;
-      font-size: 11px;
-    }
-
-    .coeff-table td {
-      padding: 6px 10px;
-      border-bottom: 1px solid #f1f5f9;
-      color: #374151;
-    }
-
-    .coeff-gender-row { background: #fef9ec; }
-
-    .var-name { font-weight: 500; color: #0f172a; font-size: 12px; }
-    .coeff-val { font-weight: 600; font-variant-numeric: tabular-nums; }
-    .t-significant { color: #b91c1c; font-weight: 600; }
-    .sig-stars { font-weight: 700; color: #6366f1; }
-
-    .coeff-note {
-      font-size: 11px;
-      color: #94a3b8;
-      margin: 4px 0 0 0;
-      font-style: italic;
-    }
-
-    /* Flagged individuals */
-    .flagged-section {
-      margin-bottom: 16px;
-    }
-
-    .flagged-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #374151;
-      margin: 0 0 10px 0;
-    }
-
-    .flagged-count {
+    .review-count {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -574,82 +498,213 @@ interface RegressionResult {
       font-weight: 700;
     }
 
-    .flagged-intro {
+    .review-intro {
       font-size: 13px;
       color: #64748b;
-      margin: 0 0 10px 0;
+      margin: 0 0 12px 0;
       line-height: 1.5;
     }
 
-    .no-flags-state {
+    .no-flags {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 14px;
+      padding: 14px 16px;
       background: #f0fdf4;
-      border: 1px solid #6ee7b7;
+      border: 1px solid #86efac;
       border-radius: 8px;
       font-size: 13px;
       color: #166534;
+      line-height: 1.5;
     }
 
-    .no-flags-icon {
-      font-size: 22px;
-      width: 22px;
-      height: 22px;
-      color: #16a34a;
-      flex-shrink: 0;
+    .no-flags mat-icon { font-size: 22px; width: 22px; height: 22px; color: #16a34a; flex-shrink: 0; }
+
+    /* Review cards */
+    .review-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
-    .flagged-table {
+    .review-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: #fff;
+    }
+
+    .card-high {
+      border-color: #fca5a5;
+      background: #fff8f8;
+    }
+
+    .rc-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .rc-id {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .rc-emp-id {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+      font-family: monospace;
+    }
+
+    .rc-location {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .rc-risk-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-high { background: #fee2e2; color: #b91c1c; }
+    .badge-medium { background: #fef3c7; color: #92400e; }
+
+    .rc-pay {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .rc-pay-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .rc-pay-label {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .rc-pay-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rc-pay-expected { color: #059669; }
+
+    .rc-pay-arrow mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #94a3b8;
+    }
+
+    .rc-gap-pill {
+      margin-left: auto;
+      padding: 4px 12px;
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Technical section */
+    .tech-section {
+      border-top: 1px solid #f1f5f9;
+      padding-top: 12px;
+      margin-bottom: 8px;
+    }
+
+    .tech-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      color: #64748b;
+      padding: 4px 0;
+    }
+
+    .tech-toggle:hover { color: #374151; }
+    .tech-toggle mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .tech-toggle-sub { color: #94a3b8; font-weight: 400; }
+
+    .tech-content {
+      margin-top: 12px;
+      padding: 14px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .tech-stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .tech-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .ts-label { font-size: 11px; color: #94a3b8; }
+    .ts-value { font-size: 13px; font-weight: 600; color: #374151; font-variant-numeric: tabular-nums; }
+
+    .coeff-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
+      margin-bottom: 4px;
     }
 
-    .flagged-table th {
+    .coeff-table th {
       text-align: left;
-      padding: 7px 10px;
-      background: #f8fafc;
+      padding: 5px 8px;
+      background: #f1f5f9;
       color: #64748b;
       font-weight: 500;
       border-bottom: 1px solid #e2e8f0;
       font-size: 11px;
     }
 
-    .flagged-table td {
-      padding: 7px 10px;
+    .coeff-table td {
+      padding: 5px 8px;
       border-bottom: 1px solid #f1f5f9;
+      color: #374151;
     }
 
-    .flagged-table tr:hover { background: #fafafa; }
+    .coeff-gender-row { background: #fef9ec; }
+    .var-name { font-weight: 500; color: #0f172a; }
+    .t-sig { color: #b91c1c; font-weight: 600; }
+    .sig-stars { font-weight: 700; color: #6366f1; }
+    .coeff-note { font-size: 11px; color: #94a3b8; font-style: italic; margin: 4px 0 12px; }
 
-    .emp-id { font-family: monospace; font-size: 12px; color: #475569; }
-    .level-badge {
-      display: inline-block;
-      padding: 1px 7px;
-      background: #f1f5f9;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 500;
-      color: #475569;
-    }
-    .salary-val { font-variant-numeric: tabular-nums; color: #374151; }
-    .muted { color: #94a3b8; }
-    .gap-val { font-weight: 600; color: #b91c1c; }
-
-    .risk-chip {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+    .method-notes {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
     }
 
-    .risk-high { background: #fee2e2; color: #b91c1c; }
-    .risk-medium { background: #fef3c7; color: #b45309; }
+    .method-notes p { margin: 2px 0; }
 
     .run-meta {
       font-size: 11px;
@@ -665,9 +720,9 @@ export class RiskRegressionComponent implements OnInit {
   result: RegressionResult | null = null;
   loading = false;
   error: string | null = null;
-  methodologyExpanded = false;
+  techExpanded = false;
 
-  protected Math = Math;
+  protected mathAbs = Math.abs;
 
   constructor(
     private api: ApiService,
@@ -675,15 +730,12 @@ export class RiskRegressionComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    // Pre-load the latest regression run if one exists
     this.api.get<RegressionResult | null>('/risk/regression/latest').subscribe({
       next: (res) => {
         this.result = res ?? null;
         this.cdr.detectChanges();
       },
-      error: () => {
-        // Not a critical error — just means no prior run
-      },
+      error: () => {},
     });
   }
 
@@ -691,7 +743,6 @@ export class RiskRegressionComponent implements OnInit {
     this.loading = true;
     this.error = null;
     this.cdr.markForCheck();
-
     this.api.post<RegressionResult>('/risk/regression', {}).subscribe({
       next: (res) => {
         this.result = res;
@@ -699,38 +750,118 @@ export class RiskRegressionComponent implements OnInit {
         this.cdr.detectChanges();
       },
       error: (err) => {
-        this.error = err?.error?.error ?? 'Regression analysis failed. Please try again.';
+        this.error = err?.error?.error ?? 'Analysis failed. Please try again.';
         this.loading = false;
         this.cdr.detectChanges();
       },
     });
   }
 
-  get keyCoefficients(): RegressionCoefficient[] {
+  // ---------------------------------------------------------------------------
+  // Verdict helpers — plain language derived from stats
+  // ---------------------------------------------------------------------------
+
+  get verdictClass(): string {
+    if (!this.result || this.result.status !== 'COMPLETED') return 'verdict-ok';
+    const gap = this.result.genderEffectPct ?? 0;
+    if (this.result.isStatSignificant && gap < -1) return 'verdict-alert';
+    if (Math.abs(gap) >= 2) return 'verdict-warn';
+    return 'verdict-ok';
+  }
+
+  get verdictIcon(): string {
+    switch (this.verdictClass) {
+      case 'verdict-alert': return 'warning';
+      case 'verdict-warn': return 'info';
+      default: return 'check_circle';
+    }
+  }
+
+  get verdictHeadline(): string {
+    const gap = this.result?.genderEffectPct ?? 0;
+    const sig = this.result?.isStatSignificant;
+    const absGap = Math.abs(gap);
+
+    if (absGap < 1) return 'No meaningful pay gap detected after adjusting for role factors';
+    if (gap < 0 && sig) return `Women earn ${absGap.toFixed(1)}% less than equally-qualified men`;
+    if (gap < 0 && !sig) return `A ${absGap.toFixed(1)}% gap was found, but the data is too limited to be certain`;
+    if (gap > 0 && sig) return `Women earn ${absGap.toFixed(1)}% more than equally-qualified men`;
+    return `A ${absGap.toFixed(1)}% gap was observed — monitor as the workforce grows`;
+  }
+
+  get verdictDetail(): string {
+    const gap = this.result?.genderEffectPct ?? 0;
+    const sig = this.result?.isStatSignificant;
+    const absGap = Math.abs(gap);
+    const controls = this.controlSummary;
+
+    if (absGap < 1) {
+      return `After accounting for ${controls}, pay between women and men is broadly equivalent across your workforce.`;
+    }
+    if (gap < 0 && sig) {
+      return `This ${absGap.toFixed(1)}% gap cannot be explained by ${controls}. It warrants a structured pay review.`;
+    }
+    if (gap < 0 && !sig) {
+      return `After adjusting for ${controls}, a gap exists but the sample size means we can't rule out that it's statistical noise.`;
+    }
+    return `After accounting for ${controls}, women appear to earn slightly more. This is worth validating.`;
+  }
+
+  get confidenceLabel(): string {
+    const p = this.result?.genderPValue ?? 1;
+    if (p < 0.01) return 'high';
+    if (p < 0.05) return 'moderate';
+    if (p < 0.15) return 'low';
+    return 'very low';
+  }
+
+  get controlSummary(): string {
+    const vars = this.result?.methodology?.controlVariables ?? [];
+    const labels: Record<string, string> = {
+      tenureYears: 'tenure',
+      levelOrdinal: 'level',
+    };
+    const readable = vars
+      .filter((v) => !v.startsWith('level_') && !v.startsWith('country_') && !v.startsWith('jobFamily_') && !v.startsWith('performance_'))
+      .map((v) => labels[v] ?? v);
+
+    if (vars.some((v) => v.startsWith('level_') || v === 'levelOrdinal')) readable.push('level');
+    if (vars.some((v) => v.startsWith('country_'))) readable.push('location');
+    if (vars.some((v) => v.startsWith('jobFamily_'))) readable.push('job family');
+    if (vars.some((v) => v.startsWith('performance_'))) readable.push('performance');
+
+    const unique = [...new Set(readable)];
+    if (unique.length === 0) return 'role factors';
+    if (unique.length === 1) return unique[0]!;
+    return unique.slice(0, -1).join(', ') + ' and ' + unique[unique.length - 1];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Technical detail helpers
+  // ---------------------------------------------------------------------------
+
+  get keyCoefficients() {
     if (!this.result?.coefficients) return [];
-    // Show: intercept, isFemale, tenureYears, levelOrdinal (if present), plus first few others
     const priority = ['intercept', 'isFemale', 'tenureYears', 'levelOrdinal'];
     const prioritised = priority
       .map((name) => this.result!.coefficients!.find((c) => c.variable === name))
       .filter(Boolean) as RegressionCoefficient[];
-    const rest = this.result.coefficients
-      .filter((c) => !priority.includes(c.variable))
-      .slice(0, 4);
+    const rest = this.result.coefficients.filter((c) => !priority.includes(c.variable)).slice(0, 4);
     return [...prioritised, ...rest];
   }
 
-  formatVarName(variable: string): string {
-    if (variable === 'isFemale') return 'Gender (female)';
-    if (variable === 'tenureYears') return 'Tenure (years)';
-    if (variable === 'levelOrdinal') return 'Level (ordinal)';
-    if (variable === 'intercept') return 'Intercept';
-    return variable.replace(/^(country|jobFamily|level|performance)_/, (_, p) => `${p}: `);
+  formatVarName(v: string): string {
+    if (v === 'isFemale') return 'Gender (female)';
+    if (v === 'tenureYears') return 'Tenure (years)';
+    if (v === 'levelOrdinal') return 'Level (ordinal)';
+    if (v === 'intercept') return 'Intercept';
+    return v.replace(/^(country|jobFamily|level|performance)_/, (_, p) => `${p}: `);
   }
 
-  sigStars(pValue: number): string {
-    if (pValue < 0.001) return '***';
-    if (pValue < 0.01) return '**';
-    if (pValue < 0.05) return '*';
+  sigStars(p: number): string {
+    if (p < 0.001) return '***';
+    if (p < 0.01) return '**';
+    if (p < 0.05) return '*';
     return '';
   }
 }

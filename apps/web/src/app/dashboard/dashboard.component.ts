@@ -10,6 +10,19 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService } from '../core/api.service';
 
+interface ParsedAiInsight {
+  executiveSummary: {
+    riskPosture: 'LOW' | 'MODERATE' | 'ELEVATED' | 'HIGH';
+    summary: string;
+    totalGroups: number;
+    thresholdAlertCount: number;
+    requiresReviewCount: number;
+    withinRangeCount: number;
+  };
+  keyFindings: string[];
+  recommendedActions: Array<{ priority: number; title: string; description: string }>;
+}
+
 interface DashboardSummary {
   employees: { total: number; withDecisions: number };
   decisions: {
@@ -221,8 +234,21 @@ interface DashboardSummary {
                 <mat-icon>arrow_forward</mat-icon>
               </a>
             </div>
-            @if (data.aiInsight) {
-              <div class="ai-snippet" [innerHTML]="aiSnippet"></div>
+            @if (data.aiInsight && parsedInsight) {
+              <div class="ai-posture-row">
+                <span class="ai-posture-badge" [attr.data-posture]="parsedInsight.executiveSummary.riskPosture">
+                  {{ parsedInsight.executiveSummary.riskPosture }}
+                </span>
+                <span class="ai-posture-label">Overall Risk Posture</span>
+              </div>
+              <p class="ai-summary-text">{{ parsedInsight.executiveSummary.summary }}</p>
+              @if (parsedInsight.keyFindings.length > 0) {
+                <ul class="ai-findings">
+                  @for (finding of parsedInsight.keyFindings.slice(0, 3); track finding) {
+                    <li>{{ finding }}</li>
+                  }
+                </ul>
+              }
               <div class="ai-meta">
                 <span>Generated {{ data.aiInsight.generatedAt | date:'medium' }}</span>
                 <span class="ai-model-badge">{{ data.aiInsight.model }}</span>
@@ -609,23 +635,51 @@ interface DashboardSummary {
     }
 
     /* AI Insight */
-    .ai-snippet {
+    .ai-posture-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .ai-posture-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .ai-posture-badge[data-posture="LOW"] { background: #ecfdf5; color: #059669; }
+    .ai-posture-badge[data-posture="MODERATE"] { background: #fffbeb; color: #d97706; }
+    .ai-posture-badge[data-posture="ELEVATED"] { background: #fff7ed; color: #ea580c; }
+    .ai-posture-badge[data-posture="HIGH"] { background: #fef2f2; color: #dc2626; }
+
+    .ai-posture-label {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .ai-summary-text {
       font-size: 13px;
       color: #334155;
       line-height: 1.6;
-      max-height: 200px;
-      overflow: hidden;
-      position: relative;
+      margin: 0 0 10px 0;
     }
 
-    .ai-snippet::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 40px;
-      background: linear-gradient(transparent, white);
+    .ai-findings {
+      margin: 0 0 10px 0;
+      padding-left: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .ai-findings li {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.5;
     }
 
     .ai-meta {
@@ -866,7 +920,7 @@ interface DashboardSummary {
 export class DashboardComponent implements OnInit {
   data: DashboardSummary | null = null;
   loading = false;
-  aiSnippet = '';
+  parsedInsight: ParsedAiInsight | null = null;
 
   decisionColumns = ['employee', 'type', 'change', 'date'];
   categoryEntries: [string, number][] = [];
@@ -891,7 +945,11 @@ export class DashboardComponent implements OnInit {
         this.decisionTypeEntries = Object.entries(data.decisions.byType)
           .sort((a, b) => b[1] - a[1]);
         if (data.aiInsight?.summary) {
-          this.aiSnippet = this.extractSnippet(data.aiInsight.summary);
+          try {
+            this.parsedInsight = JSON.parse(data.aiInsight.summary) as ParsedAiInsight;
+          } catch {
+            this.parsedInsight = null;
+          }
         }
         this.loading = false;
         this.cdr.markForCheck();
@@ -953,12 +1011,4 @@ export class DashboardComponent implements OnInit {
     return 'activity-auth';
   }
 
-  private extractSnippet(markdown: string): string {
-    // Take first ~3 lines of meaningful content, strip markdown headers
-    const lines = markdown.split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith('#') && !l.startsWith('---'));
-    const snippet = lines.slice(0, 4).join('<br>');
-    return snippet;
-  }
 }
