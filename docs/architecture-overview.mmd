@@ -1,0 +1,39 @@
+﻿flowchart LR
+    User[HR/Admin/Manager/Super Admin]
+
+    subgraph Web["apps/web (Angular SPA)"]
+      UI[Feature Modules\nDashboard, Employees, Imports,\nPay Decisions, Risk, Compliance,\nClassification, Admin]
+      AuthClient[AuthService + Guard + Interceptor]
+      ApiClient[ApiService + Domain Services]
+      UI --> AuthClient --> ApiClient
+    end
+
+    subgraph API["apps/api (Express + TS)"]
+      Entry[index.ts + middleware]
+      Routers[Route Layer\n16 routers / auth + org + super-admin]
+      Services[Domain Services\nCSV import, evaluation engine,\nrisk computation, regression,\nclassification AI, compliance,\naudit, notifications, scheduler]
+      Entry --> Routers --> Services
+    end
+
+    subgraph Shared["packages/shared"]
+      Contracts[Enums + Zod Schemas]
+    end
+
+    subgraph Data["PostgreSQL via Prisma"]
+      DB[(CDI Schema\n21 Models)]
+    end
+
+    subgraph External["External/Infra"]
+      AI[AI Providers\nOpenAI / Ollama / Anthropic]
+      Files[(Local Upload Storage\nuploads/)]
+      Cron[node-cron 2am]
+    end
+
+    User --> Web
+    Web -->|HTTPS + Bearer JWT| API
+    Web -. typed contracts .-> Shared
+    API -. validation/types .-> Shared
+    API --> DB
+    Services --> AI
+    Services --> Files
+    Cron --> Services

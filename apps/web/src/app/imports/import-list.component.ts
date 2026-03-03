@@ -42,9 +42,9 @@ import { ImportService } from './import.service';
       } @else if (imports.length > 0) {
         <table mat-table [dataSource]="imports">
           <ng-container matColumnDef="id">
-            <th mat-header-cell *matHeaderCellDef>Import ID</th>
+            <th mat-header-cell *matHeaderCellDef>Import</th>
             <td mat-cell *matCellDef="let imp">
-              <span class="import-id">{{ imp.id | slice:0:8 }}</span>
+              <span class="import-id">{{ imp.displayLabel }}</span>
             </td>
           </ng-container>
           <ng-container matColumnDef="status">
@@ -158,7 +158,11 @@ export class ImportListComponent implements OnInit {
     this.error = null;
     this.importService.getImports().subscribe({
       next: (data) => {
-        this.imports = data;
+        // Imports are newest-first; assign sequential numbers oldest=1
+        this.imports = data.map((imp: any, i: number) => ({
+          ...imp,
+          displayLabel: `Import #${data.length - i} \u2014 ${this.formatShortDate(imp.createdAt)}`,
+        }));
         this.loading = false;
       },
       error: (err) => {
@@ -173,5 +177,10 @@ export class ImportListComponent implements OnInit {
 
   startImport() {
     this.router.navigate(['/imports/new']);
+  }
+
+  private formatShortDate(dateStr: string): string {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
   }
 }

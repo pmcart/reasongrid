@@ -128,16 +128,16 @@ async function main() {
   // Create default organization
   const org = await prisma.organization.upsert({
     where: { slug: 'default' },
-    update: {},
+    update: { name: 'Meridian Group' },
     create: {
-      name: 'Default Organization',
+      name: 'Meridian Group',
       slug: 'default',
     },
   });
   console.log(`Organization: ${org.name} (${org.id})`);
 
   // Create admin user
-  const adminEmail = process.env['ADMIN_EMAIL'] || 'admin@cdi.local';
+  const adminEmail = process.env['ADMIN_EMAIL'] || 'claire.hayes@meridiangroup.com';
   const adminPassword = process.env['ADMIN_PASSWORD'] || 'Admin123!';
   const passwordHash = await bcrypt.hash(adminPassword, 12);
 
@@ -236,10 +236,10 @@ async function main() {
   // --- Additional users ---
   const hrHash = await bcrypt.hash('HrManager123!', 12);
   const hrManager = await prisma.user.upsert({
-    where: { email: 'hr@cdi.local' },
+    where: { email: 'david.oconnor@meridiangroup.com' },
     update: {},
     create: {
-      email: 'hr@cdi.local',
+      email: 'david.oconnor@meridiangroup.com',
       passwordHash: hrHash,
       role: UserRole.HR_MANAGER,
       organizationId: org.id,
@@ -249,10 +249,10 @@ async function main() {
 
   const mgrHash = await bcrypt.hash('Manager123!', 12);
   const manager1 = await prisma.user.upsert({
-    where: { email: 'manager1@cdi.local' },
+    where: { email: 'aoife.ryan@meridiangroup.com' },
     update: {},
     create: {
-      email: 'manager1@cdi.local',
+      email: 'aoife.ryan@meridiangroup.com',
       passwordHash: mgrHash,
       role: UserRole.MANAGER,
       organizationId: org.id,
@@ -261,10 +261,10 @@ async function main() {
   console.log(`Manager user: ${manager1.email}`);
 
   const manager2 = await prisma.user.upsert({
-    where: { email: 'manager2@cdi.local' },
+    where: { email: 'james.burke@meridiangroup.com' },
     update: {},
     create: {
-      email: 'manager2@cdi.local',
+      email: 'james.burke@meridiangroup.com',
       passwordHash: mgrHash,
       role: UserRole.MANAGER,
       organizationId: org.id,
@@ -763,10 +763,10 @@ Placement within the range is based on objective criteria including experience a
 
   console.log('\n=== Seed complete ===');
   console.log('Demo accounts:');
-  console.log('  admin@cdi.local / Admin123! (ADMIN)');
-  console.log('  hr@cdi.local / HrManager123! (HR_MANAGER)');
-  console.log('  manager1@cdi.local / Manager123! (MANAGER)');
-  console.log('  manager2@cdi.local / Manager123! (MANAGER)');
+  console.log(`  ${adminEmail} / Admin123! (ADMIN)`);
+  console.log('  david.oconnor@meridiangroup.com / HrManager123! (HR_MANAGER)');
+  console.log('  aoife.ryan@meridiangroup.com / Manager123! (MANAGER)');
+  console.log('  james.burke@meridiangroup.com / Manager123! (MANAGER)');
   console.log(`  25 employees across 8 comparator groups (IE/GB/NL, L2–L4, Engineering/Finance/Sales)`);
   console.log(`  6 salary ranges defined for IE and GB Engineering (NL and other job families uncovered — showcases coverage feature)`);
   console.log(`  8 finalised pay decisions with rationale links`);

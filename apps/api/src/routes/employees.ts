@@ -1,7 +1,16 @@
 import { Router } from 'express';
-import { employeeListQuerySchema, UserRole } from '@cdi/shared';
+import { employeeListQuerySchema, updateEmployeeSchema, UserRole } from '@cdi/shared';
 import { prisma } from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
+
+// Roles that are permitted to see individual gender data
+const GENDER_PRIVILEGED_ROLES: UserRole[] = [UserRole.ADMIN, UserRole.HR_MANAGER, UserRole.SUPER_ADMIN];
+
+function stripGender<T extends { gender?: unknown }>(record: T, role: UserRole): T {
+  if (GENDER_PRIVILEGED_ROLES.includes(role)) return record;
+  const { gender: _g, ...rest } = record as T & { gender?: unknown };
+  return rest as T;
+}
 
 export const employeeRouter = Router();
 employeeRouter.use(authenticate);
@@ -46,11 +55,10 @@ employeeRouter.get('/', async (req, res, next) => {
       where: { organizationId: req.user!.organizationId! },
     });
 
-    const data = employees.map((emp: any) => ({
-      ...emp,
-      decisionCount: emp._count.payDecisions,
-      _count: undefined,
-    }));
+    const data = employees.map((emp: any) => {
+      const base = { ...emp, decisionCount: emp._count.payDecisions, _count: undefined };
+      return stripGender(base, req.user!.role);
+    });
 
     res.json({
       data,
@@ -73,7 +81,7 @@ employeeRouter.get('/:id', async (req, res, next) => {
       res.status(404).json({ error: 'Employee not found' });
       return;
     }
-    res.json(employee);
+    res.json(stripGender(employee, req.user!.role));
   } catch (err) {
     next(err);
   }
@@ -135,11 +143,12 @@ employeeRouter.patch('/:id', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), asy
       return;
     }
 
+    const updates = updateEmployeeSchema.parse(req.body);
     const employee = await prisma.employee.update({
       where: { id: existing.id },
-      data: req.body,
+      data: updates,
     });
-    res.json(employee);
+    res.json(stripGender(employee, req.user!.role));
   } catch (err) {
     next(err);
   }

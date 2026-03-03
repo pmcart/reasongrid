@@ -17,6 +17,7 @@ export const auditLogQuerySchema = z.object({
   entityId: z.string().optional(),
   action: z.nativeEnum(AuditAction).optional(),
   userId: z.string().optional(),
+  excludeUserLogin: z.coerce.boolean().default(true),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });

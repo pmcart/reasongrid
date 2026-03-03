@@ -132,7 +132,6 @@ riskRouter.get('/groups/:groupKey', async (req, res, next) => {
         roleTitle: true,
         baseSalary: true,
         currency: true,
-        gender: true,
         level: true,
         jobFamily: true,
       },

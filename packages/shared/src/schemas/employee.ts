@@ -29,5 +29,13 @@ export const employeeListQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
 
+// Only fields that may be manually corrected outside of CSV imports
+export const updateEmployeeSchema = z.object({
+  location: z.string().nullable().optional(),
+  performanceRating: z.string().nullable().optional(),
+  employmentType: z.string().nullable().optional(),
+}).strict();
+
 export type Employee = z.infer<typeof employeeSchema>;
 export type EmployeeListQuery = z.infer<typeof employeeListQuerySchema>;
+export type UpdateEmployee = z.infer<typeof updateEmployeeSchema>;

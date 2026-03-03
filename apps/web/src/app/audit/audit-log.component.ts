@@ -1,6 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTableModule } from '@angular/material/table';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,6 +19,9 @@ const ACTION_LABELS: Record<string, string> = {
   EMPLOYEE_IMPORTED: 'Employee Imported',
   PAY_DECISION_CREATED: 'Pay Decision Created',
   PAY_DECISION_UPDATED: 'Pay Decision Updated',
+  PAY_DECISION_SUBMITTED: 'Pay Decision Submitted',
+  PAY_DECISION_APPROVED: 'Pay Decision Approved',
+  PAY_DECISION_RETURNED: 'Pay Decision Returned',
   PAY_DECISION_FINALISED: 'Pay Decision Finalised',
   IMPORT_STARTED: 'Import Started',
   IMPORT_COMPLETED: 'Import Completed',
@@ -33,6 +37,9 @@ const ACTION_CATEGORIES: Record<string, string> = {
   EMPLOYEE_IMPORTED: 'employee',
   PAY_DECISION_CREATED: 'decision',
   PAY_DECISION_UPDATED: 'decision',
+  PAY_DECISION_SUBMITTED: 'decision',
+  PAY_DECISION_APPROVED: 'decision',
+  PAY_DECISION_RETURNED: 'decision',
   PAY_DECISION_FINALISED: 'decision',
   IMPORT_STARTED: 'import',
   IMPORT_COMPLETED: 'import',
@@ -57,6 +64,7 @@ interface AuditListResponse {
     MatTableModule, MatSelectModule, MatFormFieldModule,
     MatButtonModule, MatIconModule, MatPaginatorModule,
     MatProgressSpinnerModule, MatChipsModule, MatTooltipModule,
+    MatSlideToggleModule,
   ],
   template: `
     <div class="page-container">
@@ -100,6 +108,12 @@ interface AuditListResponse {
             Clear Filters
           </button>
         }
+
+        <div class="login-toggle">
+          <mat-slide-toggle [(ngModel)]="showLoginEvents" (ngModelChange)="resetAndLoad()" color="primary">
+            Show login events
+          </mat-slide-toggle>
+        </div>
       </div>
 
       @if (loading) {
@@ -133,10 +147,10 @@ interface AuditListResponse {
           </ng-container>
 
           <ng-container matColumnDef="entityId">
-            <th mat-header-cell *matHeaderCellDef>Entity ID</th>
+            <th mat-header-cell *matHeaderCellDef>Reference</th>
             <td mat-cell *matCellDef="let e">
-              <span class="entity-id" [matTooltip]="e.entityId ?? ''">
-                {{ e.entityId ? e.entityId.substring(0, 8) + '...' : '—' }}
+              <span class="entity-ref" [matTooltip]="e.entityId ?? ''">
+                {{ e.entityRef ?? '—' }}
               </span>
             </td>
           </ng-container>
@@ -144,7 +158,7 @@ interface AuditListResponse {
           <ng-container matColumnDef="userId">
             <th mat-header-cell *matHeaderCellDef>User</th>
             <td mat-cell *matCellDef="let e">
-              <span class="user-id">{{ e.userId ? e.userId.substring(0, 8) + '...' : 'System' }}</span>
+              <span class="user-email">{{ e.userEmail ?? 'System' }}</span>
             </td>
           </ng-container>
 
@@ -223,6 +237,7 @@ interface AuditListResponse {
       gap: 12px;
       align-items: center;
       margin-bottom: 20px;
+      flex-wrap: wrap;
     }
 
     .filter-field {
@@ -282,16 +297,21 @@ interface AuditListResponse {
       color: #475569;
     }
 
-    .entity-id {
-      font-family: 'Inter', monospace;
-      font-size: 12px;
-      color: #94a3b8;
+    .entity-ref {
+      font-size: 13px;
+      color: #334155;
+      font-weight: 500;
     }
 
-    .user-id {
-      font-family: 'Inter', monospace;
-      font-size: 12px;
-      color: #94a3b8;
+    .user-email {
+      font-size: 13px;
+      color: #475569;
+    }
+
+    .login-toggle {
+      display: flex;
+      align-items: center;
+      margin-left: auto;
     }
 
     .metadata-preview {
@@ -355,10 +375,12 @@ export class AuditLogComponent implements OnInit {
   loading = false;
   filterAction = '';
   filterEntityType = '';
+  showLoginEvents = false;
   displayedColumns = ['createdAt', 'action', 'entityType', 'entityId', 'userId', 'details'];
 
   actionOptions = [
     'PAY_DECISION_CREATED', 'PAY_DECISION_UPDATED', 'PAY_DECISION_FINALISED',
+    'PAY_DECISION_SUBMITTED', 'PAY_DECISION_APPROVED', 'PAY_DECISION_RETURNED',
     'IMPORT_STARTED', 'IMPORT_COMPLETED', 'IMPORT_FAILED',
     'EMPLOYEE_CREATED', 'EMPLOYEE_UPDATED', 'EMPLOYEE_IMPORTED',
     'RISK_RUN_TRIGGERED', 'RISK_RUN_COMPLETED',
@@ -404,6 +426,7 @@ export class AuditLogComponent implements OnInit {
   clearFilters() {
     this.filterAction = '';
     this.filterEntityType = '';
+    this.showLoginEvents = false;
     this.resetAndLoad();
   }
 
@@ -418,6 +441,7 @@ export class AuditLogComponent implements OnInit {
     const params: Record<string, string> = {
       page: String(this.page),
       pageSize: String(this.pageSize),
+      excludeUserLogin: this.showLoginEvents ? 'false' : 'true',
     };
     if (this.filterAction) params['action'] = this.filterAction;
     if (this.filterEntityType) params['entityType'] = this.filterEntityType;

@@ -83,19 +83,7 @@
                 <mat-icon matListItemIcon>verified_user</mat-icon>
                 <span>Directive Readiness</span>
               </a>
-              <a mat-list-item routerLink="/compliance/disclosure-generator" routerLinkActive="active-link">
-                <mat-icon matListItemIcon>description</mat-icon>
-                <span>Salary Disclosure</span>
-              </a>
-              <a mat-list-item routerLink="/classification/roles" routerLinkActive="active-link">
-                <mat-icon matListItemIcon>category</mat-icon>
-                <span>Role Classification</span>
-              </a>
               @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
-                <a mat-list-item routerLink="/classification/dimensions" routerLinkActive="active-link">
-                  <mat-icon matListItemIcon>tune</mat-icon>
-                  <span>Classification Config</span>
-                </a>
                 <a mat-list-item routerLink="/compliance/audit-pack" routerLinkActive="active-link">
                   <mat-icon matListItemIcon>inventory_2</mat-icon>
                   <span>Audit Pack</span>

@@ -6,7 +6,20 @@ import { authenticate, authorize } from '../middleware/auth.js';
 import { getDeterministicMapping, tryAIMapping } from '../services/ollama.js';
 import { parseHeaders, parseSampleRows, generatePreview, processImport } from '../services/csv-processor.js';
 
-const upload = multer({ dest: 'uploads/' });
+const ALLOWED_MIME_TYPES = new Set(['text/csv', 'application/csv', 'application/vnd.ms-excel', 'text/plain']);
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
+const upload = multer({
+  dest: 'uploads/',
+  limits: { fileSize: MAX_FILE_SIZE_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.has(file.mimetype) || file.originalname.toLowerCase().endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are accepted'));
+    }
+  },
+});
 
 export const importRouter = Router();
 importRouter.use(authenticate);
@@ -20,7 +33,8 @@ importRouter.post('/employees/csv', upload.single('file'), async (req, res, next
       return;
     }
 
-    console.log('[Import] File received:', req.file.originalname, 'path:', req.file.path);
+    const safeName = req.file.originalname.replace(/[^\w.\-]/g, '_');
+    console.log('[Import] File received:', safeName, 'size:', req.file.size);
     const headers = await parseHeaders(req.file.path);
     console.log('[Import] Detected headers:', headers);
     if (headers.length === 0) {

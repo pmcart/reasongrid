@@ -14,11 +14,13 @@ import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { ApiService } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { RationaleService, RationaleDefinition } from '../core/rationale.service';
 import { EvaluationService, EvaluationResult } from '../core/evaluation.service';
 import { EvaluationPanelComponent } from './evaluation-panel.component';
+import { SubmitConfirmDialogComponent } from './submit-confirm-dialog.component';
 
 const DECISION_TYPES = ['NEW_HIRE', 'PROMOTION', 'ADJUSTMENT', 'ANNUAL_INCREASE', 'OTHER'];
 
@@ -49,7 +51,7 @@ interface OrgUser {
     CommonModule, FormsModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatButtonModule, MatDatepickerModule, MatNativeDateModule,
     MatIconModule, MatSnackBarModule, MatProgressSpinnerModule, MatCardModule,
-    MatCheckboxModule, EvaluationPanelComponent,
+    MatCheckboxModule, MatDialogModule, EvaluationPanelComponent,
   ],
   template: `
     <mat-card class="form-card">
@@ -146,16 +148,28 @@ interface OrgUser {
           <div class="form-section-label">Rationale & Evidence</div>
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Rationale</mat-label>
-            <mat-select [(ngModel)]="form.rationaleSelections" multiple required>
-              @for (group of rationaleGroups; track group.category) {
-                <mat-optgroup [label]="group.categoryLabel">
-                  @for (r of group.rationales; track r.id) {
-                    <mat-option [value]="r.id">{{ r.name }}</mat-option>
-                  }
-                </mat-optgroup>
+            <mat-select [(ngModel)]="form.rationaleSelections" multiple required [disabled]="rationaleLoading">
+              @if (rationaleLoading) {
+                <mat-option disabled>Loading rationale options...</mat-option>
+              } @else if (rationaleGroups.length === 0) {
+                <mat-option disabled>No rationale options available — contact your administrator</mat-option>
+              } @else {
+                @for (group of rationaleGroups; track group.category) {
+                  <mat-optgroup [label]="group.categoryLabel">
+                    @for (r of group.rationales; track r.id) {
+                      <mat-option [value]="r.id">{{ r.name }}</mat-option>
+                    }
+                  </mat-optgroup>
+                }
               }
             </mat-select>
-            <mat-hint>Select one or more objective rationale categories</mat-hint>
+            <mat-hint>
+              @if (rationaleError) {
+                <span style="color: #dc2626;">{{ rationaleError }}</span>
+              } @else {
+                Select one or more objective rationale categories
+              }
+            </mat-hint>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="full-width">
@@ -374,6 +388,8 @@ export class PayDecisionFormComponent implements OnInit, OnChanges, OnDestroy {
 
   decisionTypes = DECISION_TYPES;
   rationaleGroups: RationaleGroup[] = [];
+  rationaleLoading = false;
+  rationaleError: string | null = null;
   users: OrgUser[] = [];
   saving = false;
   submitting = false;
@@ -411,6 +427,7 @@ export class PayDecisionFormComponent implements OnInit, OnChanges, OnDestroy {
     private snackBar: MatSnackBar,
     private rationaleService: RationaleService,
     private evaluationService: EvaluationService,
+    private dialog: MatDialog,
   ) {}
 
   ngOnInit() {
@@ -419,11 +436,17 @@ export class PayDecisionFormComponent implements OnInit, OnChanges, OnDestroy {
       next: (users) => (this.users = users),
       error: () => {},
     });
+    this.rationaleLoading = true;
+    this.rationaleError = null;
     this.rationaleService.getActive().subscribe({
       next: (defs) => {
+        this.rationaleLoading = false;
         this.rationaleGroups = this.groupByCategory(defs);
       },
-      error: () => {},
+      error: () => {
+        this.rationaleLoading = false;
+        this.rationaleError = 'Failed to load rationale options — please refresh and try again';
+      },
     });
 
     // Debounced evaluation
@@ -622,38 +645,47 @@ export class PayDecisionFormComponent implements OnInit, OnChanges, OnDestroy {
 
   submitForReview() {
     if (!this.decision?.id || !this.isValid()) return;
-    this.submitting = true;
-    this.errorMessage = '';
 
-    // First save any changes
-    const payload = {
-      ...this.form,
-      effectiveDate: new Date(this.form.effectiveDate).toISOString(),
-      accountableOwnerUserId: this.form.accountableOwnerUserId || undefined,
-    };
+    const dialogRef = this.dialog.open(SubmitConfirmDialogComponent, {
+      data: { evaluationResult: this.evaluationResult },
+      disableClose: false,
+    });
 
-    this.api.patch(`/pay-decisions/${this.decision.id}`, payload).subscribe({
-      next: () => {
-        // Then submit
-        const submitPayload: any = {};
-        if (this.warningCheckTypes.length > 0 && this.warningsAcknowledged) {
-          submitPayload.warningAcknowledgements = this.warningCheckTypes;
-        }
-        this.api.post(`/pay-decisions/${this.decision.id}/submit`, submitPayload).subscribe({
-          next: (result) => {
-            this.snackBar.open('Pay decision submitted for review', 'OK', { duration: 3000 });
-            this.saved.emit(result);
-          },
-          error: (err) => {
-            this.submitting = false;
-            this.errorMessage = err?.error?.error || 'Failed to submit for review';
-          },
-        });
-      },
-      error: (err) => {
-        this.submitting = false;
-        this.errorMessage = err?.error?.error || 'Failed to save changes before submitting';
-      },
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) return;
+
+      this.submitting = true;
+      this.errorMessage = '';
+
+      // First save any changes
+      const payload = {
+        ...this.form,
+        effectiveDate: new Date(this.form.effectiveDate).toISOString(),
+        accountableOwnerUserId: this.form.accountableOwnerUserId || undefined,
+      };
+
+      this.api.patch(`/pay-decisions/${this.decision.id}`, payload).subscribe({
+        next: () => {
+          const submitPayload: any = {};
+          if (this.warningCheckTypes.length > 0 && this.warningsAcknowledged) {
+            submitPayload.warningAcknowledgements = this.warningCheckTypes;
+          }
+          this.api.post(`/pay-decisions/${this.decision.id}/submit`, submitPayload).subscribe({
+            next: (result) => {
+              this.snackBar.open('Pay decision submitted for review', 'OK', { duration: 3000 });
+              this.saved.emit(result);
+            },
+            error: (err) => {
+              this.submitting = false;
+              this.errorMessage = err?.error?.error || 'Failed to submit for review';
+            },
+          });
+        },
+        error: (err) => {
+          this.submitting = false;
+          this.errorMessage = err?.error?.error || 'Failed to save changes before submitting';
+        },
+      });
     });
   }
 }

@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import { rateLimit } from 'express-rate-limit';
 import { authRouter } from './routes/auth.js';
 import { employeeRouter } from './routes/employees.js';
 import { payDecisionRouter } from './routes/pay-decisions.js';
@@ -25,17 +26,45 @@ import { initScheduler } from './services/scheduler.js';
 const app = express();
 const PORT = process.env['PORT'] || 3000;
 
-// CORS configuration
-const corsOrigin = process.env['CORS_ORIGIN'] || 'http://localhost:4200';
+// CORS configuration — hard-fail in production if CORS_ORIGIN is not set
+const corsOrigin = process.env['CORS_ORIGIN'];
+if (!corsOrigin && process.env['NODE_ENV'] === 'production') {
+  throw new Error('CORS_ORIGIN environment variable must be set in production');
+}
 app.use(cors({
-  origin: corsOrigin,
+  origin: corsOrigin || 'http://localhost:4200',
   credentials: true,
 }));
 app.use(morgan('dev'));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
+
+// Rate limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const importLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  message: { error: 'Too many upload requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const mutationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Routes
-app.use('/auth', authRouter);
+app.use('/auth', authLimiter, authRouter);
 
 // Super admin routes (auth + superAdminOnly applied here; individual routes don't need it)
 app.use('/admin', authenticate, superAdminOnly, adminRouter);
@@ -43,8 +72,8 @@ app.use('/admin', authenticate, superAdminOnly, adminRouter);
 // Org-scoped routes — authenticate first (to populate req.user), then requireOrgScope
 // (each router also calls authenticate internally which is harmless — it re-verifies the token)
 app.use('/employees', authenticate, requireOrgScope, employeeRouter);
-app.use('/pay-decisions', authenticate, requireOrgScope, payDecisionRouter);
-app.use('/imports', authenticate, requireOrgScope, importRouter);
+app.use('/pay-decisions', mutationLimiter, authenticate, requireOrgScope, payDecisionRouter);
+app.use('/imports', importLimiter, authenticate, requireOrgScope, importRouter);
 app.use('/risk', authenticate, requireOrgScope, riskRouter);
 app.use('/reports', authenticate, requireOrgScope, reportRouter);
 app.use('/audit', authenticate, requireOrgScope, auditRouter);

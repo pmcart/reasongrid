@@ -251,7 +251,7 @@ interface DashboardSummary {
               }
               <div class="ai-meta">
                 <span>Generated {{ data.aiInsight.generatedAt | date:'medium' }}</span>
-                <span class="ai-model-badge">{{ data.aiInsight.model }}</span>
+                <span class="ai-model-badge">{{ formatModelName(data.aiInsight.model) }}</span>
               </div>
             } @else {
               <div class="empty-section">
@@ -1001,6 +1001,17 @@ export class DashboardComponent implements OnInit {
     if (action.startsWith('RATIONALE')) return 'menu_book';
     if (action === 'USER_LOGIN') return 'login';
     return 'circle';
+  }
+
+  formatModelName(model: string): string {
+    // Map raw model IDs to the ReasonGrid AI display label
+    const knownModels = new Set([
+      'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo',
+      'claude-sonnet-4-5-20250929', 'claude-opus-4-6', 'claude-haiku-4-5-20251001',
+      'llama3:8b', 'llama3', 'llama3:70b',
+    ]);
+    if (knownModels.has(model)) return 'ReasonGrid AI';
+    return model || 'ReasonGrid AI';
   }
 
   getActivityIconClass(action: string): string {

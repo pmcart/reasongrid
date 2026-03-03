@@ -5,8 +5,9 @@
  * Groups employees by (country + jobFamily + level) with a fallback to
  * (country + level + roleTitle) when jobFamily is null.
  *
- * Gap metric: median baseSalary comparison (men vs women).
+ * Gap metric: median total compensation (baseSalary + bonusTarget + ltiTarget) comparison (men vs women).
  * Falls back to mean when either gender has fewer than 3 members.
+ * This aligns with EU Pay Transparency Directive coverage of total remuneration.
  *
  * Thresholds:
  *   < 4%  → WITHIN_EXPECTED_RANGE
@@ -47,7 +48,7 @@ function computeMean(values: number[]): number {
 }
 
 interface GroupedEmployee {
-  baseSalary: number;
+  totalCompensation: number;
   gender: GenderCategory;
 }
 
@@ -147,6 +148,8 @@ async function executeRiskComputation(
       where: { organizationId },
       select: {
         baseSalary: true,
+        bonusTarget: true,
+        ltiTarget: true,
         gender: true,
         country: true,
         jobFamily: true,
@@ -182,7 +185,8 @@ async function executeRiskComputation(
         groupMap.set(groupKey, group);
       }
 
-      group.employees.push({ baseSalary: emp.baseSalary, gender: genderCat });
+      const totalCompensation = emp.baseSalary + (emp.bonusTarget ?? 0) + (emp.ltiTarget ?? 0);
+      group.employees.push({ totalCompensation, gender: genderCat });
     }
 
     // Compute risk metrics per group
@@ -206,10 +210,10 @@ async function executeRiskComputation(
     for (const group of groupMap.values()) {
       const womenSalaries = group.employees
         .filter((e) => e.gender === 'female')
-        .map((e) => e.baseSalary);
+        .map((e) => e.totalCompensation);
       const menSalaries = group.employees
         .filter((e) => e.gender === 'male')
-        .map((e) => e.baseSalary);
+        .map((e) => e.totalCompensation);
 
       const womenCount = womenSalaries.length;
       const menCount = menSalaries.length;
