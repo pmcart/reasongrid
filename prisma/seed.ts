@@ -328,6 +328,20 @@ async function main() {
     hireDate: Date;
     performanceRating: string;
   }) {
+    const employeeData = {
+      roleTitle: data.roleTitle,
+      jobFamily: data.jobFamily,
+      level: data.level,
+      country: data.country,
+      location: data.location,
+      currency: data.currency,
+      baseSalary: data.baseSalary,
+      bonusTarget: data.bonusTarget ?? null,
+      gender: data.gender,
+      hireDate: data.hireDate,
+      performanceRating: data.performanceRating,
+      employmentType: 'Full-time',
+    };
     return prisma.employee.upsert({
       where: {
         organizationId_employeeId: {
@@ -335,22 +349,11 @@ async function main() {
           employeeId: data.employeeId,
         },
       },
-      update: {},
+      update: employeeData,
       create: {
         organizationId: org.id,
         employeeId: data.employeeId,
-        roleTitle: data.roleTitle,
-        jobFamily: data.jobFamily,
-        level: data.level,
-        country: data.country,
-        location: data.location,
-        currency: data.currency,
-        baseSalary: data.baseSalary,
-        bonusTarget: data.bonusTarget ?? null,
-        gender: data.gender,
-        hireDate: data.hireDate,
-        performanceRating: data.performanceRating,
-        employmentType: 'Full-time',
+        ...employeeData,
       },
     });
   }

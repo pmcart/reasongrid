@@ -104,27 +104,16 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./compliance/readiness-dashboard.component').then((m) => m.ReadinessDashboardComponent),
       },
-      {
-        path: 'compliance/disclosure-generator',
-        loadComponent: () =>
-          import('./compliance/disclosure-generator.component').then((m) => m.DisclosureGeneratorComponent),
-      },
+      // Disclosure generator not yet ready — redirect to dashboard
+      { path: 'compliance/disclosure-generator', redirectTo: '/dashboard', pathMatch: 'full' },
       {
         path: 'compliance/audit-pack',
         loadComponent: () =>
           import('./compliance/audit-pack.component').then((m) => m.AuditPackComponent),
       },
-      // Classification
-      {
-        path: 'classification/roles',
-        loadComponent: () =>
-          import('./classification/role-classification-list.component').then((m) => m.RoleClassificationListComponent),
-      },
-      {
-        path: 'classification/dimensions',
-        loadComponent: () =>
-          import('./classification/classification-dimensions.component').then((m) => m.ClassificationDimensionsComponent),
-      },
+      // Classification screens not yet ready — redirect to dashboard
+      { path: 'classification/roles', redirectTo: '/dashboard', pathMatch: 'full' },
+      { path: 'classification/dimensions', redirectTo: '/dashboard', pathMatch: 'full' },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },
