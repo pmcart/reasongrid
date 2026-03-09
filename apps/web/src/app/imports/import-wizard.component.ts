@@ -1,4 +1,4 @@
-import { Component, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -13,8 +13,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDividerModule } from '@angular/material/divider';
 import { ImportService } from './import.service';
-import type { CsvUploadResponse, ImportPreview, PreviewRow } from '@cdi/shared';
+import { HrisService } from '../core/hris.service';
+import type { CsvUploadResponse, ImportPreview, PreviewRow, HrisConnection, HrisSyncPreview } from '@cdi/shared';
 
 const STANDARD_EMPLOYEE_FIELDS = [
   { key: 'employeeId', label: 'Employee ID', required: true },
@@ -60,13 +62,14 @@ interface MappingRow {
     MatProgressBarModule,
     MatTooltipModule,
     MatChipsModule,
+    MatDividerModule,
   ],
   template: `
     <div class="page-container">
       <div class="page-header">
         <div>
           <h1>Import Employees</h1>
-          <p class="page-description">Upload a CSV file and map columns to import employee data</p>
+          <p class="page-description">Choose how to import employee data</p>
         </div>
         <button mat-button (click)="goBack()">
           <mat-icon>arrow_back</mat-icon>
@@ -74,6 +77,198 @@ interface MappingRow {
         </button>
       </div>
 
+      <!-- Source selection -->
+      @if (!importSource) {
+        <div class="source-picker">
+          <div class="source-card" (click)="selectSource('csv')">
+            <mat-icon class="source-icon">upload_file</mat-icon>
+            <h3>Upload CSV File</h3>
+            <p>Map and import a CSV export from your payroll or HR system. Includes AI-assisted column mapping.</p>
+            <button mat-flat-button color="primary">Choose CSV</button>
+          </div>
+          <div class="source-card" (click)="selectSource('hris')">
+            <mat-icon class="source-icon hris">account_tree</mat-icon>
+            <h3>Sync from HRIS</h3>
+            <p>Connect directly to BambooHR to sync employee and salary data automatically — no file needed.</p>
+            <button mat-flat-button color="accent">Connect HRIS</button>
+          </div>
+        </div>
+      }
+
+      <!-- HRIS flow -->
+      @if (importSource === 'hris') {
+        <mat-stepper #hrisStepper linear>
+
+          <!-- Step 1: Select connection -->
+          <mat-step [completed]="hrisConnectionSelected">
+            <ng-template matStepLabel>Select Connection</ng-template>
+            <div class="step-content">
+              @if (hrisLoadingConnections) {
+                <div class="center-loading">
+                  <mat-spinner diameter="40"></mat-spinner>
+                  <p>Loading HRIS connections…</p>
+                </div>
+              } @else if (hrisConnections.length === 0) {
+                <div class="empty-connections">
+                  <mat-icon>cable</mat-icon>
+                  <h3>No HRIS connections configured</h3>
+                  <p>You need to set up a BambooHR connection before you can sync employees.</p>
+                  <a mat-flat-button color="primary" routerLink="/settings/integrations">
+                    <mat-icon>settings</mat-icon> Go to Integrations Settings
+                  </a>
+                </div>
+              } @else {
+                <p class="step-desc">Select which HRIS connection to sync from:</p>
+                <div class="connection-picker">
+                  @for (conn of hrisConnections; track conn.id) {
+                    <div class="connection-option" [class.selected]="selectedHrisConnection?.id === conn.id"
+                         (click)="selectHrisConnection(conn)">
+                      <mat-icon class="conn-icon">account_tree</mat-icon>
+                      <div class="conn-info">
+                        <span class="conn-name">{{ conn.name }}</span>
+                        <span class="conn-sub">{{ conn.subdomain }}.bamboohr.com</span>
+                        @if (conn.lastSyncAt) {
+                          <span class="conn-last">Last synced {{ conn.lastSyncAt | date:'dd MMM yyyy' }}</span>
+                        } @else {
+                          <span class="conn-last">Never synced</span>
+                        }
+                      </div>
+                      @if (selectedHrisConnection?.id === conn.id) {
+                        <mat-icon class="selected-check">check_circle</mat-icon>
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="step-actions">
+                  <button mat-button (click)="importSource = null">Back</button>
+                  <button mat-flat-button color="primary"
+                          [disabled]="!selectedHrisConnection || hrisLoadingPreview"
+                          (click)="loadHrisPreview()">
+                    @if (hrisLoadingPreview) { <mat-spinner diameter="18" style="display:inline-block;margin-right:6px"></mat-spinner> }
+                    @else { <mat-icon>preview</mat-icon> }
+                    Preview Data
+                  </button>
+                </div>
+              }
+            </div>
+          </mat-step>
+
+          <!-- Step 2: Preview -->
+          <mat-step [completed]="hrisSyncStarted">
+            <ng-template matStepLabel>Preview & Confirm</ng-template>
+            <div class="step-content">
+              @if (hrisPreview) {
+                <div class="preview-summary">
+                  <div class="summary-card success">
+                    <span class="summary-number">{{ hrisPreview.totalEmployees }}</span>
+                    <span class="summary-label">Employees Found</span>
+                  </div>
+                  @if (hrisPreview.fetchErrors > 0) {
+                    <div class="summary-card warning">
+                      <span class="summary-number">{{ hrisPreview.fetchErrors }}</span>
+                      <span class="summary-label">Skipped (Errors)</span>
+                    </div>
+                  }
+                </div>
+
+                <h3 class="preview-heading">Sample (first {{ hrisPreview.sample.length }} employees)</h3>
+                <div class="preview-table-wrapper">
+                  <table mat-table [dataSource]="hrisPreview.sample" class="preview-table">
+                    <ng-container matColumnDef="employeeId">
+                      <th mat-header-cell *matHeaderCellDef>Employee ID</th>
+                      <td mat-cell *matCellDef="let r">{{ r.employeeId }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="roleTitle">
+                      <th mat-header-cell *matHeaderCellDef>Role Title</th>
+                      <td mat-cell *matCellDef="let r">{{ r.roleTitle }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="jobFamily">
+                      <th mat-header-cell *matHeaderCellDef>Job Family</th>
+                      <td mat-cell *matCellDef="let r">{{ r.jobFamily ?? '—' }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="level">
+                      <th mat-header-cell *matHeaderCellDef>Level</th>
+                      <td mat-cell *matCellDef="let r">{{ r.level }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="country">
+                      <th mat-header-cell *matHeaderCellDef>Country</th>
+                      <td mat-cell *matCellDef="let r">{{ r.country }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="baseSalary">
+                      <th mat-header-cell *matHeaderCellDef>Base Salary</th>
+                      <td mat-cell *matCellDef="let r">{{ r.currency }} {{ r.baseSalary | number:'1.0-0' }}</td>
+                    </ng-container>
+                    <tr mat-header-row *matHeaderRowDef="hrisPreviewColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: hrisPreviewColumns;"></tr>
+                  </table>
+                </div>
+
+                @if (hrisPreview.errors.length > 0) {
+                  <div class="hris-errors">
+                    <mat-icon>warning</mat-icon>
+                    <strong>{{ hrisPreview.errors.length }} employee{{ hrisPreview.errors.length > 1 ? 's' : '' }} will be skipped</strong>
+                    — missing required fields (employee ID, role title, country, or salary).
+                  </div>
+                }
+
+                <div class="step-actions">
+                  <button mat-button matStepperPrevious>Back</button>
+                  <button mat-flat-button color="primary" [disabled]="hrisConfirming" (click)="confirmHrisSync()">
+                    @if (hrisConfirming) { <mat-spinner diameter="18" style="display:inline-block;margin-right:6px"></mat-spinner> }
+                    @else { <mat-icon>sync</mat-icon> }
+                    Start Sync
+                  </button>
+                </div>
+              }
+            </div>
+          </mat-step>
+
+          <!-- Step 3: Results -->
+          <mat-step>
+            <ng-template matStepLabel>Results</ng-template>
+            <div class="step-content">
+              @if (polling) {
+                <div class="results-loading">
+                  <mat-spinner diameter="48"></mat-spinner>
+                  <p>Syncing employees from BambooHR…</p>
+                  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+                </div>
+              } @else if (importResult) {
+                <div class="results-container">
+                  <mat-icon class="results-icon" [class.success]="importResult.status === 'COMPLETED'" [class.failed]="importResult.status === 'FAILED'">
+                    {{ importResult.status === 'COMPLETED' ? 'check_circle' : 'error' }}
+                  </mat-icon>
+                  <h2>Sync {{ importResult.status === 'COMPLETED' ? 'Complete' : 'Failed' }}</h2>
+                  <div class="results-summary">
+                    <div class="result-stat created">
+                      <span class="stat-number">{{ importResult.createdCount ?? 0 }}</span>
+                      <span class="stat-label">Created</span>
+                    </div>
+                    <div class="result-stat updated">
+                      <span class="stat-number">{{ importResult.updatedCount ?? 0 }}</span>
+                      <span class="stat-label">Updated</span>
+                    </div>
+                    <div class="result-stat errors">
+                      <span class="stat-number">{{ importResult.errorCount ?? 0 }}</span>
+                      <span class="stat-label">Errors</span>
+                    </div>
+                  </div>
+                  <div class="step-actions">
+                    <button mat-button (click)="goBack()">Back to Imports</button>
+                    <button mat-flat-button color="primary" routerLink="/employees">
+                      <mat-icon>people</mat-icon> View Employees
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </mat-step>
+
+        </mat-stepper>
+      }
+
+      <!-- CSV flow -->
+      @if (importSource === 'csv') {
       <mat-stepper #stepper linear>
         <!-- Step 1: Upload CSV -->
         <mat-step [completed]="uploadComplete">
@@ -366,6 +561,7 @@ interface MappingRow {
           </div>
         </mat-step>
       </mat-stepper>
+      } <!-- end csv flow -->
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -683,19 +879,145 @@ interface MappingRow {
         margin: 0 0 4px 0;
       }
     }
+
+    /* Source picker */
+    .source-picker {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 700px;
+    }
+
+    .source-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 32px 24px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: #fff;
+      gap: 12px;
+
+      &:hover {
+        border-color: #4f46e5;
+        background: #f8f9ff;
+        box-shadow: 0 4px 16px rgba(79,70,229,0.08);
+      }
+
+      h3 { margin: 0; font-size: 17px; font-weight: 600; color: #0f172a; }
+      p { margin: 0; font-size: 13px; color: #64748b; line-height: 1.5; }
+    }
+
+    .source-icon {
+      font-size: 40px;
+      width: 40px;
+      height: 40px;
+      color: #4f46e5;
+      &.hris { color: #7ab648; }
+    }
+
+    /* HRIS connection picker */
+    .center-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 48px;
+      color: #64748b;
+    }
+
+    .empty-connections {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 48px;
+      text-align: center;
+      color: #64748b;
+      mat-icon { font-size: 48px; width: 48px; height: 48px; color: #cbd5e1; }
+      h3 { margin: 0; font-size: 18px; font-weight: 600; color: #0f172a; }
+      p { margin: 0; font-size: 14px; }
+    }
+
+    .step-desc { font-size: 14px; color: #475569; margin: 0 0 20px; }
+
+    .connection-picker {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 600px;
+      margin-bottom: 24px;
+    }
+
+    .connection-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: #fff;
+
+      &:hover { border-color: #4f46e5; background: #f8f9ff; }
+      &.selected { border-color: #4f46e5; background: #eef2ff; }
+    }
+
+    .conn-icon { font-size: 28px; width: 28px; height: 28px; color: #7ab648; }
+
+    .conn-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .conn-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+    .conn-sub { font-size: 12px; color: #555; font-family: monospace; }
+    .conn-last { font-size: 11px; color: #94a3b8; }
+
+    .selected-check { color: #4f46e5; margin-left: auto; }
+
+    /* HRIS error notice */
+    .hris-errors {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      color: #92400e;
+      font-size: 13px;
+      margin-top: 16px;
+      mat-icon { color: #d97706; flex-shrink: 0; }
+    }
   `],
 })
-export class ImportWizardComponent {
+export class ImportWizardComponent implements OnInit {
   @ViewChild('stepper') stepper!: MatStepper;
+  @ViewChild('hrisStepper') hrisStepper!: MatStepper;
 
-  // Step 1: Upload
+  private importService = inject(ImportService);
+  private hrisService = inject(HrisService);
+  private router = inject(Router);
+  private cdr = inject(ChangeDetectorRef);
+
+  // Source selection
+  importSource: 'csv' | 'hris' | null = null;
+
+  // Step 1: Upload (CSV)
   selectedFile: File | null = null;
   uploading = false;
   uploadComplete = false;
   uploadError: string | null = null;
   isDragOver = false;
 
-  // Step 2: Mapping
+  // Step 2: Mapping (CSV)
   uploadResponse: (CsvUploadResponse & { mappingSource?: string }) | null = null;
   mappingRows: MappingRow[] = [];
   mappingColumns = ['field', 'csvColumn', 'sample', 'confidence'];
@@ -704,22 +1026,86 @@ export class ImportWizardComponent {
   loadingPreview = false;
   aiMappingStatus: 'pending' | 'completed' | 'failed' | null = null;
 
-  // Step 3: Preview
+  // Step 3: Preview (CSV)
   previewData: ImportPreview | null = null;
   previewColumns: string[] = [];
   mappedFields: { key: string; label: string }[] = [];
   importStarted = false;
   confirming = false;
 
-  // Step 4: Results
+  // Step 4: Results (shared)
   polling = false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   importResult: any = null;
 
-  constructor(
-    private importService: ImportService,
-    private router: Router,
-    private cdr: ChangeDetectorRef,
-  ) {}
+  // HRIS flow state
+  hrisConnections: HrisConnection[] = [];
+  hrisLoadingConnections = false;
+  selectedHrisConnection: HrisConnection | null = null;
+  hrisConnectionSelected = false;
+  hrisLoadingPreview = false;
+  hrisPreview: HrisSyncPreview | null = null;
+  hrisSyncStarted = false;
+  hrisConfirming = false;
+  hrisPreviewColumns = ['employeeId', 'roleTitle', 'jobFamily', 'level', 'country', 'baseSalary'];
+
+  ngOnInit() {
+    // Pre-load HRIS connections in the background
+    this.hrisService.listConnections().subscribe({
+      next: (c) => { this.hrisConnections = c; this.cdr.markForCheck(); },
+      error: () => {},
+    });
+  }
+
+  selectSource(source: 'csv' | 'hris') {
+    this.importSource = source;
+    if (source === 'hris') {
+      this.hrisLoadingConnections = false;
+    }
+  }
+
+  // --- HRIS flow ---
+
+  selectHrisConnection(conn: HrisConnection) {
+    this.selectedHrisConnection = conn;
+  }
+
+  loadHrisPreview() {
+    if (!this.selectedHrisConnection) return;
+    this.hrisLoadingPreview = true;
+    this.hrisService.getPreview(this.selectedHrisConnection.id).subscribe({
+      next: (preview) => {
+        this.hrisPreview = preview;
+        this.hrisLoadingPreview = false;
+        this.hrisConnectionSelected = true;
+        this.cdr.detectChanges();
+        this.hrisStepper?.next();
+      },
+      error: () => {
+        this.hrisLoadingPreview = false;
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  confirmHrisSync() {
+    if (!this.selectedHrisConnection) return;
+    this.hrisConfirming = true;
+    this.hrisService.sync(this.selectedHrisConnection.id).subscribe({
+      next: (r) => {
+        this.hrisConfirming = false;
+        this.hrisSyncStarted = true;
+        this.polling = true;
+        this.cdr.detectChanges();
+        this.hrisStepper?.next();
+        this.startPolling(r.importId);
+      },
+      error: () => {
+        this.hrisConfirming = false;
+        this.cdr.markForCheck();
+      },
+    });
+  }
 
   goBack() {
     this.router.navigate(['/imports']);

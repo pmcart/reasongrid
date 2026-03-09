@@ -19,6 +19,7 @@ import { notificationRouter } from './routes/notifications.js';
 import { classificationDimensionRouter } from './routes/classification-dimensions.js';
 import { roleClassificationRouter } from './routes/role-classifications.js';
 import { complianceRouter } from './routes/compliance.js';
+import { hrisRouter } from './routes/hris.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { authenticate, superAdminOnly, requireOrgScope } from './middleware/auth.js';
 import { initScheduler } from './services/scheduler.js';
@@ -85,6 +86,7 @@ app.use('/notifications', authenticate, requireOrgScope, notificationRouter);
 app.use('/classification-dimensions', authenticate, requireOrgScope, classificationDimensionRouter);
 app.use('/role-classifications', authenticate, requireOrgScope, roleClassificationRouter);
 app.use('/compliance', authenticate, requireOrgScope, complianceRouter);
+app.use('/hris', authenticate, requireOrgScope, hrisRouter);
 
 // Health check
 app.get('/health', (_req, res) => {

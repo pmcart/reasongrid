@@ -13,3 +13,4 @@ export * from './schemas/policy-rule.js';
 export * from './schemas/notification.js';
 export * from './schemas/classification.js';
 export * from './schemas/compliance.js';
+export * from './schemas/hris.js';

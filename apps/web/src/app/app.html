@@ -41,6 +41,12 @@
                 <mat-icon matListItemIcon>upload_file</mat-icon>
                 <span>Imports</span>
               </a>
+              @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
+                <a mat-list-item routerLink="/settings/integrations" routerLinkActive="active-link">
+                  <mat-icon matListItemIcon>cable</mat-icon>
+                  <span>Integrations</span>
+                </a>
+              }
             </mat-nav-list>
           }
         </div>

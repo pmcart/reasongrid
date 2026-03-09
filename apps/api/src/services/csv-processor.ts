@@ -1,6 +1,7 @@
 /**
  * CSV processor service — handles parsing CSV files, previewing data
  * with mapping applied, and processing imports into employee records.
+ * Also handles HRIS-sourced imports (BambooHR etc.) via processHrisImport().
  */
 
 import fs from 'fs';
@@ -9,6 +10,7 @@ import { prisma } from '../lib/prisma.js';
 import { normalizeCountry, normalizeSalary, annualizeSalary } from './normalization.js';
 import { logAudit } from './audit.js';
 import { runRiskComputation } from './risk-computation.js';
+import type { BambooHrEmployee } from './bamboohr.js';
 
 interface ImportError {
   row: number;
@@ -389,4 +391,123 @@ function mapAndNormalizeRow(
     gender: getVal('gender'),
     performanceRating: getVal('performanceRating'),
   };
+}
+
+/**
+ * Process a HRIS-sourced import (BambooHR etc).
+ * Data has already been fetched and mapped by the provider service — no CSV parsing needed.
+ * Upserts employees + creates snapshots, same as CSV import.
+ */
+export async function processHrisImport(
+  importId: string,
+  employees: BambooHrEmployee[],
+  fetchErrors: Array<{ id: string; message: string }>,
+  organizationId: string,
+): Promise<void> {
+  let createdCount = 0;
+  let updatedCount = 0;
+  let errorCount = fetchErrors.length;
+
+  try {
+    for (const emp of employees) {
+      try {
+        const existing = await prisma.employee.findUnique({
+          where: {
+            organizationId_employeeId: {
+              organizationId,
+              employeeId: emp.employeeId,
+            },
+          },
+        });
+
+        const employeeData = {
+          employeeId: emp.employeeId,
+          roleTitle: emp.roleTitle,
+          jobFamily: emp.jobFamily,
+          level: emp.level,
+          country: emp.country,
+          location: emp.location,
+          currency: emp.currency.toUpperCase(),
+          baseSalary: emp.baseSalary,
+          bonusTarget: emp.bonusTarget,
+          ltiTarget: emp.ltiTarget,
+          hireDate: emp.hireDate,
+          employmentType: emp.employmentType,
+          gender: emp.gender,
+          performanceRating: emp.performanceRating,
+        };
+
+        let employee;
+        if (existing) {
+          employee = await prisma.employee.update({
+            where: { id: existing.id },
+            data: { ...employeeData, organizationId },
+          });
+          updatedCount++;
+        } else {
+          employee = await prisma.employee.create({
+            data: { ...employeeData, organizationId },
+          });
+          createdCount++;
+        }
+
+        await prisma.employeeSnapshot.create({
+          data: {
+            employeeId: employee.id,
+            importJobId: importId,
+            organizationId,
+            employeeExternalId: emp.employeeId,
+            roleTitle: emp.roleTitle,
+            jobFamily: emp.jobFamily,
+            level: emp.level,
+            country: emp.country,
+            location: emp.location,
+            currency: emp.currency.toUpperCase(),
+            baseSalary: emp.baseSalary,
+            bonusTarget: emp.bonusTarget,
+            ltiTarget: emp.ltiTarget,
+            hireDate: emp.hireDate,
+            employmentType: emp.employmentType,
+            gender: emp.gender,
+            performanceRating: emp.performanceRating,
+          },
+        });
+      } catch (err) {
+        errorCount++;
+        console.error(`[HrisImport] Failed to upsert employee ${emp.employeeId}:`, err);
+      }
+    }
+
+    await prisma.importJob.update({
+      where: { id: importId },
+      data: { status: 'COMPLETED', createdCount, updatedCount, errorCount },
+    });
+
+    logAudit({
+      organizationId,
+      action: 'IMPORT_COMPLETED',
+      entityType: 'ImportJob',
+      entityId: importId,
+      metadata: { createdCount, updatedCount, errorCount, source: 'hris' },
+    });
+
+    runRiskComputation(organizationId, 'SYSTEM', importId).catch((err) =>
+      console.error('Risk computation after HRIS import failed:', err),
+    );
+  } catch (err) {
+    await prisma.importJob.update({
+      where: { id: importId },
+      data: { status: 'FAILED', createdCount, updatedCount, errorCount: errorCount + 1 },
+    });
+
+    logAudit({
+      organizationId,
+      action: 'IMPORT_FAILED',
+      entityType: 'ImportJob',
+      entityId: importId,
+      metadata: { error: (err as Error).message, source: 'hris' },
+    });
+
+    console.error('[HrisImport] Import processing failed:', err);
+  }
 }

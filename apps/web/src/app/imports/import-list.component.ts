@@ -21,7 +21,7 @@ import { ImportService } from './import.service';
         </div>
         <button mat-raised-button color="primary" (click)="startImport()">
           <mat-icon>cloud_upload</mat-icon>
-          Import CSV
+          Import Employees
         </button>
       </div>
 

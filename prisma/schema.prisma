@@ -19,6 +19,7 @@ model Organization {
   users                    User[]
   employees                Employee[]
   importJobs               ImportJob[]
+  hrisConnections          HrisConnection[]
   riskRuns                  RiskRun[]
   rationaleDefinitions     RationaleDefinition[]
   aiRiskReports            AiRiskReport[]
@@ -198,6 +199,28 @@ model PayDecisionRationale {
   @@unique([payDecisionId, rationaleDefinitionId])
 }
 
+// --- HRIS Integrations ---
+
+model HrisConnection {
+  id               String    @id @default(uuid())
+  organizationId   String
+  provider         String    // 'bamboohr' (extensible for future providers)
+  name             String    // display name, e.g. "Meridian BambooHR"
+  subdomain        String    // company subdomain, e.g. 'reasongrid' from reasongrid.bamboohr.com
+  apiKey           String    @db.Text
+  fieldMappingJson Json?     // optional override: { "level": "customLevel", ... }
+  isActive         Boolean   @default(true)
+  lastSyncAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  importJobs   ImportJob[]
+
+  @@unique([organizationId, provider, name])
+  @@index([organizationId])
+}
+
 // --- Imports ---
 
 enum ImportJobStatus {
@@ -212,7 +235,9 @@ model ImportJob {
   uploadedByUserId String
   organizationId   String
   status           ImportJobStatus @default(PENDING_MAPPING)
+  source           String          @default("csv") // 'csv' | 'bamboohr'
   filePath         String?
+  hrisConnectionId String?
   createdCount     Int?
   updatedCount     Int?
   errorCount       Int?
@@ -221,10 +246,11 @@ model ImportJob {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  uploadedBy   User               @relation(fields: [uploadedByUserId], references: [id])
-  organization Organization       @relation(fields: [organizationId], references: [id])
-  snapshots    EmployeeSnapshot[]
-  riskRuns     RiskRun[]
+  uploadedBy      User               @relation(fields: [uploadedByUserId], references: [id])
+  organization    Organization       @relation(fields: [organizationId], references: [id])
+  hrisConnection  HrisConnection?    @relation(fields: [hrisConnectionId], references: [id])
+  snapshots       EmployeeSnapshot[]
+  riskRuns        RiskRun[]
 }
 
 // --- Risk Analysis ---

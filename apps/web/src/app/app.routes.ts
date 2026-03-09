@@ -98,6 +98,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./settings/salary-ranges.component').then((m) => m.SalaryRangesComponent),
       },
+      {
+        path: 'settings/integrations',
+        loadComponent: () =>
+          import('./settings/integrations.component').then((m) => m.IntegrationsComponent),
+      },
       // Compliance
       {
         path: 'compliance/readiness',
