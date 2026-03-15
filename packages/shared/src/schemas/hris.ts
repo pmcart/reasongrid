@@ -1,10 +1,11 @@
 import { z } from 'zod';
 
-export const SUPPORTED_HRIS_PROVIDERS = ['bamboohr'] as const;
+export const SUPPORTED_HRIS_PROVIDERS = ['bamboohr', 'hibob'] as const;
 export type HrisProvider = (typeof SUPPORTED_HRIS_PROVIDERS)[number];
 
 export const hrisProviderLabels: Record<HrisProvider, string> = {
   bamboohr: 'BambooHR',
+  hibob: 'HiBob',
 };
 
 export interface HrisConnection {

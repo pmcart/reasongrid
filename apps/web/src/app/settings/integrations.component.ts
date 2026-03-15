@@ -18,9 +18,10 @@ import { MatDividerModule } from '@angular/material/divider';
 import { RouterModule } from '@angular/router';
 import { HrisService } from '../core/hris.service';
 import { AuthService } from '../core/auth.service';
-import type { HrisConnection, HrisTestResult } from '@cdi/shared';
+import type { HrisConnection, HrisProvider, HrisTestResult } from '@cdi/shared';
+import { hrisProviderLabels } from '@cdi/shared';
 
-// ─── Connection Dialog ────────────────────────────────────────────────────────
+// ─── Connection Dialog (provider-aware) ──────────────────────────────────────
 
 @Component({
   selector: 'app-hris-connection-dialog',
@@ -33,34 +34,58 @@ import type { HrisConnection, HrisTestResult } from '@cdi/shared';
     MatDialogModule, MatChipsModule,
   ],
   template: `
-    <h2 mat-dialog-title>{{ data.connection ? 'Edit' : 'Add' }} BambooHR Connection</h2>
+    <h2 mat-dialog-title>{{ data.connection ? 'Edit' : 'Add' }} {{ providerLabel }} Connection</h2>
     <mat-dialog-content>
       <form [formGroup]="form" class="dialog-form">
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Connection Name</mat-label>
-          <input matInput formControlName="name" placeholder="e.g. Production BambooHR" />
+          <input matInput formControlName="name" placeholder="e.g. Production {{ providerLabel }}" />
           <mat-hint>A friendly label for this connection</mat-hint>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Company Subdomain</mat-label>
-          <input matInput formControlName="subdomain" placeholder="e.g. reasongrid" />
-          <mat-hint>From your BambooHR URL: <strong>subdomain</strong>.bamboohr.com</mat-hint>
-        </mat-form-field>
+        @if (data.provider === 'bamboohr') {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Company Subdomain</mat-label>
+            <input matInput formControlName="subdomain" placeholder="e.g. reasongrid" />
+            <mat-hint>From your BambooHR URL: <strong>subdomain</strong>.bamboohr.com</mat-hint>
+          </mat-form-field>
 
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>API Key</mat-label>
-          <input matInput formControlName="apiKey" [type]="showKey ? 'text' : 'password'"
-                 placeholder="{{ data.connection ? 'Enter new key to update' : 'Paste your BambooHR API key' }}" />
-          <button mat-icon-button matSuffix type="button" (click)="showKey = !showKey">
-            <mat-icon>{{ showKey ? 'visibility_off' : 'visibility' }}</mat-icon>
-          </button>
-          @if (data.connection) {
-            <mat-hint>Leave blank to keep the existing key</mat-hint>
-          } @else {
-            <mat-hint>Generated in BambooHR → My Account → API Keys</mat-hint>
-          }
-        </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>API Key</mat-label>
+            <input matInput formControlName="apiKey" [type]="showKey ? 'text' : 'password'"
+                   placeholder="{{ data.connection ? 'Enter new key to update' : 'Paste your BambooHR API key' }}" />
+            <button mat-icon-button matSuffix type="button" (click)="showKey = !showKey">
+              <mat-icon>{{ showKey ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            @if (data.connection) {
+              <mat-hint>Leave blank to keep the existing key</mat-hint>
+            } @else {
+              <mat-hint>Generated in BambooHR → My Account → API Keys</mat-hint>
+            }
+          </mat-form-field>
+        }
+
+        @if (data.provider === 'hibob') {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Service User ID</mat-label>
+            <input matInput formControlName="subdomain" placeholder="e.g. SERVICE-12345" />
+            <mat-hint>From HiBob admin: Settings → Integrations → Service Users</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Service User Token</mat-label>
+            <input matInput formControlName="apiKey" [type]="showKey ? 'text' : 'password'"
+                   placeholder="{{ data.connection ? 'Enter new token to update' : 'Paste your HiBob service user token' }}" />
+            <button mat-icon-button matSuffix type="button" (click)="showKey = !showKey">
+              <mat-icon>{{ showKey ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            @if (data.connection) {
+              <mat-hint>Leave blank to keep the existing token</mat-hint>
+            } @else {
+              <mat-hint>Generated when creating the service user — copy it immediately, it's shown only once</mat-hint>
+            }
+          </mat-form-field>
+        }
 
         @if (testResult) {
           <div class="test-result" [class.success]="testResult.success" [class.error]="!testResult.success">
@@ -96,7 +121,7 @@ import type { HrisConnection, HrisTestResult } from '@cdi/shared';
   `],
 })
 export class HrisConnectionDialogComponent {
-  data = inject<{ connection: HrisConnection | null }>(MAT_DIALOG_DATA);
+  data = inject<{ provider: HrisProvider; connection: HrisConnection | null }>(MAT_DIALOG_DATA);
   dialogRef = inject(MatDialogRef<HrisConnectionDialogComponent>);
   private hrisService = inject(HrisService);
   private cdr = inject(ChangeDetectorRef);
@@ -105,6 +130,10 @@ export class HrisConnectionDialogComponent {
   testing = false;
   saving = false;
   testResult: HrisTestResult | null = null;
+
+  get providerLabel() {
+    return hrisProviderLabels[this.data.provider] ?? this.data.provider;
+  }
 
   form = inject(FormBuilder).nonNullable.group({
     name: [this.data.connection?.name ?? '', Validators.required],
@@ -118,7 +147,7 @@ export class HrisConnectionDialogComponent {
     if (!sub || !key) return;
     this.testing = true;
     this.testResult = null;
-    this.hrisService.testCredentials(sub, key).subscribe({
+    this.hrisService.testCredentials(sub, key, this.data.provider).subscribe({
       next: (r) => { this.testResult = r; this.testing = false; this.cdr.markForCheck(); },
       error: () => { this.testResult = { success: false, message: 'Request failed' }; this.testing = false; this.cdr.markForCheck(); },
     });
@@ -137,7 +166,12 @@ export class HrisConnectionDialogComponent {
         error: () => { this.saving = false; this.cdr.markForCheck(); },
       });
     } else {
-      this.hrisService.createConnection({ provider: 'bamboohr', name: v.name, subdomain: v.subdomain, apiKey: v.apiKey }).subscribe({
+      this.hrisService.createConnection({
+        provider: this.data.provider,
+        name: v.name,
+        subdomain: v.subdomain,
+        apiKey: v.apiKey,
+      }).subscribe({
         next: (c) => { this.saving = false; this.dialogRef.close(c); },
         error: () => { this.saving = false; this.cdr.markForCheck(); },
       });
@@ -169,174 +203,200 @@ export class HrisConnectionDialogComponent {
         </div>
       </div>
 
-      <!-- Setup Instructions -->
+      <!-- BambooHR ──────────────────────────────────────────────────────────── -->
       <mat-card class="setup-card">
         <mat-card-header>
-          <mat-icon mat-card-avatar class="provider-icon">info_outline</mat-icon>
+          <mat-icon mat-card-avatar class="provider-icon bamboohr-color">account_tree</mat-icon>
           <mat-card-title>Before you connect BambooHR</mat-card-title>
           <mat-card-subtitle>Your BambooHR admin needs to complete these steps</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
           <ol class="setup-steps">
-            <li>
-              <strong>Log in to BambooHR</strong> as an admin (or a user with <em>View All</em> access to employee and compensation data).
-            </li>
-            <li>
-              Go to <strong>My Account</strong> (click your name, top-right) → <strong>API Keys</strong>.
-            </li>
-            <li>
-              Click <strong>"Add New Key"</strong>, give it a name such as <em>"CDI Integration"</em>, then click Generate.
-            </li>
-            <li>
-              <strong>Copy the API key immediately</strong> — BambooHR only shows it once.
-            </li>
-            <li>
-              Note your <strong>company subdomain</strong>: it's the part before <code>.bamboohr.com</code> in your BambooHR URL
-              (e.g. <code>https://<strong>reasongrid</strong>.bamboohr.com</code>).
-            </li>
-            <li>
-              Paste both values into the connection form below and click <strong>Test Connection</strong> to verify.
-            </li>
+            <li>Log in to BambooHR as an admin → <strong>My Account → API Keys</strong>.</li>
+            <li>Click <strong>"Add New Key"</strong>, name it <em>"CDI Integration"</em>, then click Generate.</li>
+            <li><strong>Copy the API key immediately</strong> — BambooHR only shows it once.</li>
+            <li>Note your <strong>company subdomain</strong>: the part before <code>.bamboohr.com</code> in your URL.</li>
           </ol>
-
-          <div class="tip-box">
-            <mat-icon>tips_and_updates</mat-icon>
-            <div>
-              <strong>Recommended:</strong> Create a dedicated <em>Integration User</em> in BambooHR with read-only access to employee records and compensation data.
-              This limits the blast radius if the API key is ever compromised.
-            </div>
-          </div>
-
           <div class="tip-box warn">
             <mat-icon>lock</mat-icon>
-            <div>
-              <strong>Data accessed:</strong> CDI syncs employee identity (name, ID), role details, location, hire date, gender, and compensation (base pay, currency).
-              Compensation data requires that the API user has access to the <em>Compensation</em> tab in BambooHR.
-            </div>
+            <div><strong>Data accessed:</strong> employee identity, role, location, hire date, gender, and compensation (base pay, currency).</div>
           </div>
         </mat-card-content>
       </mat-card>
 
-      <!-- BambooHR Connections -->
       <mat-card class="connections-card">
         <mat-card-header>
           <div class="provider-header">
-            <div class="provider-logo bamboohr-logo">
+            <div class="provider-logo bamboohr-color">
               <mat-icon>account_tree</mat-icon>
               <span>BambooHR</span>
             </div>
-            @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
-              <button mat-flat-button color="primary" (click)="openAddDialog()">
+            @if (canManage) {
+              <button mat-flat-button color="primary" (click)="openAddDialog('bamboohr')">
                 <mat-icon>add</mat-icon> Add Connection
               </button>
             }
           </div>
         </mat-card-header>
         <mat-card-content>
-          @if (loading) {
-            <div class="loading-state">
-              <mat-spinner diameter="32"></mat-spinner>
-              <span>Loading connections…</span>
-            </div>
-          } @else if (connections.length === 0) {
-            <div class="empty-state">
-              <mat-icon>cable</mat-icon>
-              <p>No BambooHR connections configured yet.</p>
-              @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
-                <button mat-stroked-button color="primary" (click)="openAddDialog()">
-                  <mat-icon>add</mat-icon> Add your first connection
-                </button>
-              }
-            </div>
-          } @else {
-            <div class="connections-list">
-              @for (conn of connections; track conn.id) {
-                <div class="connection-row">
-                  <div class="connection-info">
-                    <div class="connection-name">
-                      <span>{{ conn.name }}</span>
-                      <span class="subdomain-chip">{{ conn.subdomain }}.bamboohr.com</span>
-                      @if (!conn.isActive) {
-                        <span class="status-chip disabled">Disabled</span>
-                      } @else {
-                        <span class="status-chip active">Active</span>
-                      }
-                    </div>
-                    <div class="connection-meta">
-                      @if (conn.lastSyncAt) {
-                        Last synced {{ conn.lastSyncAt | date:'dd MMM yyyy, HH:mm' }}
-                      } @else {
-                        Never synced
-                      }
-                    </div>
-                  </div>
-                  <div class="connection-actions">
-                    @if (syncing[conn.id]) {
-                      <mat-spinner diameter="20"></mat-spinner>
-                    }
-                    <button mat-icon-button matTooltip="Test connection"
-                            [disabled]="!!syncing[conn.id]"
-                            (click)="testConnection(conn)">
-                      <mat-icon>wifi_tethering</mat-icon>
-                    </button>
-                    @if (auth.user()?.role === 'ADMIN' || auth.user()?.role === 'HR_MANAGER') {
-                      <button mat-icon-button matTooltip="Sync now"
-                              [disabled]="!conn.isActive || !!syncing[conn.id]"
-                              (click)="syncNow(conn)">
-                        <mat-icon>sync</mat-icon>
-                      </button>
-                      <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(conn)">
-                        <mat-icon>edit</mat-icon>
-                      </button>
-                      @if (auth.user()?.role === 'ADMIN') {
-                        <button mat-icon-button matTooltip="Delete" color="warn" (click)="deleteConnection(conn)">
-                          <mat-icon>delete</mat-icon>
-                        </button>
-                      }
-                    }
-                  </div>
-                </div>
-              }
-            </div>
-          }
+          <ng-container *ngTemplateOutlet="connectionList; context: { $implicit: bamboohrConnections }"></ng-container>
         </mat-card-content>
       </mat-card>
 
-      <!-- Field Mapping Info -->
+      <!-- HiBob ────────────────────────────────────────────────────────────── -->
+      <mat-card class="setup-card">
+        <mat-card-header>
+          <mat-icon mat-card-avatar class="provider-icon hibob-color">people_alt</mat-icon>
+          <mat-card-title>Before you connect HiBob</mat-card-title>
+          <mat-card-subtitle>Your HiBob admin needs to create a Service User</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <ol class="setup-steps">
+            <li>Log in to HiBob as an admin → <strong>Settings → Integrations → Service Users</strong>.</li>
+            <li>Click <strong>"Create service user"</strong>, give it a name such as <em>"CDI Integration"</em>.</li>
+            <li>
+              Grant read access to: <strong>Basic Info, Work Info, Personal Info (gender), and Payroll</strong>.
+              Without Payroll access, salary data will not be synced.
+            </li>
+            <li>Click <strong>Create</strong> — copy the <strong>Service User ID</strong> and <strong>Token</strong> immediately.
+              The token is only shown once.</li>
+          </ol>
+          <div class="tip-box warn">
+            <mat-icon>lock</mat-icon>
+            <div><strong>Data accessed:</strong> employee identity, job title, department, site, start date, legal gender, and compensation (annual salary, currency, bonus target).</div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="connections-card">
+        <mat-card-header>
+          <div class="provider-header">
+            <div class="provider-logo hibob-color">
+              <mat-icon>people_alt</mat-icon>
+              <span>HiBob</span>
+            </div>
+            @if (canManage) {
+              <button mat-flat-button color="primary" (click)="openAddDialog('hibob')">
+                <mat-icon>add</mat-icon> Add Connection
+              </button>
+            }
+          </div>
+        </mat-card-header>
+        <mat-card-content>
+          <ng-container *ngTemplateOutlet="connectionList; context: { $implicit: hibobConnections }"></ng-container>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Shared connection list template -->
+      <ng-template #connectionList let-conns>
+        @if (loading) {
+          <div class="loading-state">
+            <mat-spinner diameter="32"></mat-spinner>
+            <span>Loading connections…</span>
+          </div>
+        } @else if (conns.length === 0) {
+          <div class="empty-state">
+            <mat-icon>cable</mat-icon>
+            <p>No connections configured yet.</p>
+          </div>
+        } @else {
+          <div class="connections-list">
+            @for (conn of conns; track conn.id) {
+              <div class="connection-row">
+                <div class="connection-info">
+                  <div class="connection-name">
+                    <span>{{ conn.name }}</span>
+                    <span class="subdomain-chip">{{ conn.subdomain }}</span>
+                    @if (!conn.isActive) {
+                      <span class="status-chip disabled">Disabled</span>
+                    } @else {
+                      <span class="status-chip active">Active</span>
+                    }
+                  </div>
+                  <div class="connection-meta">
+                    @if (conn.lastSyncAt) {
+                      Last synced {{ conn.lastSyncAt | date:'dd MMM yyyy, HH:mm' }}
+                    } @else {
+                      Never synced
+                    }
+                  </div>
+                </div>
+                <div class="connection-actions">
+                  @if (syncing[conn.id]) {
+                    <mat-spinner diameter="20"></mat-spinner>
+                  }
+                  <button mat-icon-button matTooltip="Test connection"
+                          [disabled]="!!syncing[conn.id]"
+                          (click)="testConnection(conn)">
+                    <mat-icon>wifi_tethering</mat-icon>
+                  </button>
+                  @if (canManage) {
+                    <button mat-icon-button matTooltip="Sync now"
+                            [disabled]="!conn.isActive || !!syncing[conn.id]"
+                            (click)="syncNow(conn)">
+                      <mat-icon>sync</mat-icon>
+                    </button>
+                    <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(conn)">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    @if (auth.user()?.role === 'ADMIN') {
+                      <button mat-icon-button matTooltip="Delete" color="warn" (click)="deleteConnection(conn)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    }
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </ng-template>
+
+      <!-- Field Mapping Info ────────────────────────────────────────────────── -->
       <mat-card class="info-card">
         <mat-card-header>
           <mat-card-title>How employee data is mapped</mat-card-title>
         </mat-card-header>
         <mat-card-content>
+          <h4 style="margin:0 0 8px;font-size:13px;font-weight:600;color:#555">BambooHR</h4>
           <div class="mapping-table-wrapper">
             <table class="mapping-table">
-              <thead>
-                <tr>
-                  <th>CDI Field</th>
-                  <th>BambooHR Field</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
+              <thead><tr><th>CDI Field</th><th>BambooHR Field</th><th>Notes</th></tr></thead>
               <tbody>
                 <tr><td>Employee ID</td><td>employeeNumber</td><td>Stable HR ID (not internal BambooHR ID)</td></tr>
-                <tr><td>Full Name</td><td>firstName + lastName</td><td></td></tr>
                 <tr><td>Role Title</td><td>jobTitle</td><td></td></tr>
                 <tr><td>Job Family</td><td>department</td><td></td></tr>
-                <tr><td>Level</td><td>customLevel</td><td>Custom field — ensure it exists in BambooHR. Falls back to <em>department</em>.</td></tr>
+                <tr><td>Level</td><td>customLevel</td><td>Custom field — falls back to <em>department</em></td></tr>
                 <tr><td>Country</td><td>country</td><td>Normalised to ISO 2-letter code</td></tr>
                 <tr><td>Location</td><td>location</td><td></td></tr>
                 <tr><td>Base Salary</td><td>payRate</td><td>Automatically annualised based on payPeriod</td></tr>
-                <tr><td>Currency</td><td>currency</td><td></td></tr>
                 <tr><td>Hire Date</td><td>hireDate</td><td></td></tr>
-                <tr><td>Employment Type</td><td>employmentHistoryStatus</td><td>Full-time, Part-time, Contract etc.</td></tr>
-                <tr><td>Gender</td><td>gender</td><td>Used for risk analysis only; not shown in manager UI</td></tr>
+                <tr><td>Gender</td><td>gender</td><td>Used for risk analysis only</td></tr>
               </tbody>
             </table>
           </div>
-          <p class="mapping-note">
-            If your BambooHR instance uses a different custom field for <em>Level</em>, contact your CDI administrator
-            to configure the field mapping per connection.
-          </p>
+
+          <h4 style="margin:16px 0 8px;font-size:13px;font-weight:600;color:#555">HiBob</h4>
+          <div class="mapping-table-wrapper">
+            <table class="mapping-table">
+              <thead><tr><th>CDI Field</th><th>HiBob Field Path</th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td>Employee ID</td><td>work.employeeIdInCompany</td><td>Falls back to HiBob internal ID</td></tr>
+                <tr><td>Full Name</td><td>root.fullName</td><td></td></tr>
+                <tr><td>Role Title</td><td>work.title</td><td></td></tr>
+                <tr><td>Job Family</td><td>work.department</td><td></td></tr>
+                <tr><td>Level</td><td>employee.orgLevel</td><td>Standard org level field</td></tr>
+                <tr><td>Country</td><td>address.siteCountry</td><td>Work site country, normalised to ISO code</td></tr>
+                <tr><td>Location</td><td>work.site</td><td>Office site name</td></tr>
+                <tr><td>Base Salary</td><td>payroll.salary.yearlyPayment</td><td>Annual salary; falls back to payment + payPeriod annualisation</td></tr>
+                <tr><td>Currency</td><td>payroll.salary.payment.currency</td><td></td></tr>
+                <tr><td>Bonus Target</td><td>payroll.variable.Bonus.amount</td><td>Or % of annual salary if amount not set</td></tr>
+                <tr><td>Hire Date</td><td>work.startDate</td><td></td></tr>
+                <tr><td>Employment Type</td><td>payroll.employment.type</td><td></td></tr>
+                <tr><td>Gender</td><td>home.legalGender</td><td>Used for risk analysis only; requires Personal Info permission</td></tr>
+              </tbody>
+            </table>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -347,9 +407,8 @@ export class HrisConnectionDialogComponent {
     .page-title { margin: 0 0 4px; font-size: 24px; font-weight: 600; }
     .page-subtitle { margin: 0; color: #666; font-size: 14px; }
 
-    .setup-card, .connections-card, .info-card { margin-bottom: 24px; }
+    .setup-card, .connections-card, .info-card { margin-bottom: 16px; }
 
-    /* Setup instructions */
     .setup-steps {
       margin: 0 0 16px; padding-left: 20px;
       li { margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
@@ -357,12 +416,10 @@ export class HrisConnectionDialogComponent {
     }
     .tip-box {
       display: flex; gap: 10px; padding: 12px 14px; border-radius: 8px;
-      background: #e3f2fd; font-size: 13px; margin-top: 12px;
-      mat-icon { color: #1565c0; font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+      font-size: 13px; margin-top: 12px;
       &.warn { background: #fff8e1; mat-icon { color: #f57f17; } }
     }
 
-    /* Provider header */
     .provider-header {
       display: flex; justify-content: space-between; align-items: center;
       width: 100%; padding: 4px 0;
@@ -370,16 +427,17 @@ export class HrisConnectionDialogComponent {
     .provider-logo {
       display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px;
       mat-icon { font-size: 22px; }
-      &.bamboohr-logo { color: #7ab648; }
     }
+    .provider-icon { font-size: 22px !important; width: 22px !important; height: 22px !important; }
+    .bamboohr-color { color: #7ab648; }
+    .hibob-color { color: #5b4fe9; }
 
-    /* Connections list */
     .loading-state, .empty-state {
       display: flex; flex-direction: column; align-items: center;
-      gap: 12px; padding: 40px; color: #888; text-align: center;
-      mat-icon { font-size: 40px; width: 40px; height: 40px; color: #ccc; }
+      gap: 12px; padding: 32px; color: #888; text-align: center;
+      mat-icon { font-size: 36px; width: 36px; height: 36px; color: #ccc; }
     }
-    .connections-list { display: flex; flex-direction: column; gap: 0; }
+    .connections-list { display: flex; flex-direction: column; }
     .connection-row {
       display: flex; align-items: center; justify-content: space-between;
       padding: 14px 0; border-bottom: 1px solid #f0f0f0;
@@ -392,7 +450,7 @@ export class HrisConnectionDialogComponent {
     }
     .subdomain-chip {
       font-size: 12px; color: #555; background: #f5f5f5;
-      padding: 2px 8px; border-radius: 12px;
+      padding: 2px 8px; border-radius: 12px; font-family: monospace;
     }
     .status-chip {
       font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 500;
@@ -402,7 +460,6 @@ export class HrisConnectionDialogComponent {
     .connection-meta { font-size: 12px; color: #888; }
     .connection-actions { display: flex; align-items: center; gap: 4px; }
 
-    /* Field mapping table */
     .mapping-table-wrapper { overflow-x: auto; }
     .mapping-table {
       width: 100%; border-collapse: collapse; font-size: 13px;
@@ -410,7 +467,6 @@ export class HrisConnectionDialogComponent {
       th { font-weight: 600; background: #fafafa; }
       td:nth-child(2) { font-family: monospace; font-size: 12px; color: #555; }
     }
-    .mapping-note { font-size: 12px; color: #888; margin: 12px 0 0; }
   `],
 })
 export class IntegrationsComponent implements OnInit {
@@ -424,6 +480,19 @@ export class IntegrationsComponent implements OnInit {
   loading = true;
   syncing: Record<string, boolean> = {};
 
+  get canManage() {
+    const role = this.auth.user()?.role;
+    return role === 'ADMIN' || role === 'HR_MANAGER';
+  }
+
+  get bamboohrConnections() {
+    return this.connections.filter((c) => c.provider === 'bamboohr');
+  }
+
+  get hibobConnections() {
+    return this.connections.filter((c) => c.provider === 'hibob');
+  }
+
   ngOnInit() {
     this.loadConnections();
   }
@@ -436,33 +505,35 @@ export class IntegrationsComponent implements OnInit {
     });
   }
 
-  openAddDialog() {
-    this.dialog.open(HrisConnectionDialogComponent, { data: { connection: null }, width: '500px' })
-      .afterClosed().subscribe((result: HrisConnection | undefined) => {
-        if (result) {
-          this.connections = [...this.connections, result];
-          this.snackBar.open('Connection added', 'Dismiss', { duration: 3000 });
-          this.cdr.markForCheck();
-        }
-      });
+  openAddDialog(provider: HrisProvider) {
+    this.dialog.open(HrisConnectionDialogComponent, {
+      data: { provider, connection: null },
+      width: '500px',
+    }).afterClosed().subscribe((result: HrisConnection | undefined) => {
+      if (result) {
+        this.connections = [...this.connections, result];
+        this.snackBar.open('Connection added', 'Dismiss', { duration: 3000 });
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   openEditDialog(conn: HrisConnection) {
-    this.dialog.open(HrisConnectionDialogComponent, { data: { connection: conn }, width: '500px' })
-      .afterClosed().subscribe((result: HrisConnection | undefined) => {
-        if (result) {
-          this.connections = this.connections.map((c) => (c.id === result.id ? result : c));
-          this.snackBar.open('Connection updated', 'Dismiss', { duration: 3000 });
-          this.cdr.markForCheck();
-        }
-      });
+    this.dialog.open(HrisConnectionDialogComponent, {
+      data: { provider: conn.provider, connection: conn },
+      width: '500px',
+    }).afterClosed().subscribe((result: HrisConnection | undefined) => {
+      if (result) {
+        this.connections = this.connections.map((c) => (c.id === result.id ? result : c));
+        this.snackBar.open('Connection updated', 'Dismiss', { duration: 3000 });
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   testConnection(conn: HrisConnection) {
     this.hrisService.testConnection(conn.id).subscribe({
-      next: (r) => {
-        this.snackBar.open(r.message, 'Dismiss', { duration: 5000 });
-      },
+      next: (r) => { this.snackBar.open(r.message, 'Dismiss', { duration: 6000 }); },
       error: () => this.snackBar.open('Test request failed', 'Dismiss', { duration: 4000 }),
     });
   }

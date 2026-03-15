@@ -53,8 +53,8 @@ export class HrisService {
     return this.http.post<HrisTestResult>(`${this.base}/connections/${id}/test`, {});
   }
 
-  testCredentials(subdomain: string, apiKey: string): Observable<HrisTestResult> {
-    return this.http.post<HrisTestResult>(`${this.base}/test-credentials`, { subdomain, apiKey });
+  testCredentials(subdomain: string, apiKey: string, provider = 'bamboohr'): Observable<HrisTestResult> {
+    return this.http.post<HrisTestResult>(`${this.base}/test-credentials`, { provider, subdomain, apiKey });
   }
 
   getPreview(id: string): Observable<HrisSyncPreview> {

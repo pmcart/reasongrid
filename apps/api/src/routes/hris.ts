@@ -12,6 +12,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { testBambooHrConnection, fetchBambooHrEmployees } from '../services/bamboohr.js';
+import { testHiBobConnection, fetchHiBobEmployees } from '../services/hibob.js';
 import { processHrisImport } from '../services/csv-processor.js';
 import { logAudit } from '../services/audit.js';
 
@@ -89,8 +90,8 @@ hrisRouter.post('/connections', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), 
       return;
     }
 
-    if (provider !== 'bamboohr') {
-      res.status(400).json({ error: `Unsupported provider: ${provider}. Supported: bamboohr` });
+    if (provider !== 'bamboohr' && provider !== 'hibob') {
+      res.status(400).json({ error: `Unsupported provider: ${provider}. Supported: bamboohr, hibob` });
       return;
     }
 
@@ -194,7 +195,9 @@ hrisRouter.post('/connections/:id/test', authorize(UserRole.ADMIN, UserRole.HR_M
       return;
     }
 
-    const result = await testBambooHrConnection(connection.subdomain, connection.apiKey);
+    const result = connection.provider === 'hibob'
+      ? await testHiBobConnection(connection.subdomain, connection.apiKey)
+      : await testBambooHrConnection(connection.subdomain, connection.apiKey);
     res.json(result);
   } catch (err) {
     next(err);
@@ -205,13 +208,15 @@ hrisRouter.post('/connections/:id/test', authorize(UserRole.ADMIN, UserRole.HR_M
 
 hrisRouter.post('/test-credentials', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), async (req, res, next) => {
   try {
-    const { subdomain, apiKey } = req.body as { subdomain?: string; apiKey?: string };
+    const { provider = 'bamboohr', subdomain, apiKey } = req.body as { provider?: string; subdomain?: string; apiKey?: string };
     if (!subdomain || !apiKey) {
       res.status(400).json({ error: 'subdomain and apiKey are required' });
       return;
     }
 
-    const result = await testBambooHrConnection(subdomain.trim().toLowerCase(), apiKey);
+    const result = provider === 'hibob'
+      ? await testHiBobConnection(subdomain.trim(), apiKey)
+      : await testBambooHrConnection(subdomain.trim().toLowerCase(), apiKey);
     res.json(result);
   } catch (err) {
     next(err);
@@ -231,11 +236,9 @@ hrisRouter.get('/connections/:id/preview', authorize(UserRole.ADMIN, UserRole.HR
     }
 
     const fieldMapping = connection.fieldMappingJson as Record<string, string> | null ?? undefined;
-    const { employees, errors } = await fetchBambooHrEmployees(
-      connection.subdomain,
-      connection.apiKey,
-      fieldMapping,
-    );
+    const { employees, errors } = connection.provider === 'hibob'
+      ? await fetchHiBobEmployees(connection.subdomain, connection.apiKey, fieldMapping)
+      : await fetchBambooHrEmployees(connection.subdomain, connection.apiKey, fieldMapping);
 
     // Return a preview (first 10 rows + stats)
     res.json({
@@ -301,11 +304,9 @@ hrisRouter.post('/connections/:id/sync', authorize(UserRole.ADMIN, UserRole.HR_M
     (async () => {
       try {
         const fieldMapping = connection.fieldMappingJson as Record<string, string> | null ?? undefined;
-        const { employees, errors } = await fetchBambooHrEmployees(
-          connection.subdomain,
-          connection.apiKey,
-          fieldMapping,
-        );
+        const { employees, errors } = connection.provider === 'hibob'
+          ? await fetchHiBobEmployees(connection.subdomain, connection.apiKey, fieldMapping)
+          : await fetchBambooHrEmployees(connection.subdomain, connection.apiKey, fieldMapping);
 
         await processHrisImport(importJob.id, employees, errors, organizationId);
 
