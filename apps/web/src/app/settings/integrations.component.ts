@@ -195,95 +195,79 @@ export class HrisConnectionDialogComponent {
   template: `
     <div class="page-container">
       <div class="page-header">
-        <div>
-          <h1 class="page-title">HR System Integrations</h1>
-          <p class="page-subtitle">
-            Connect your HRIS to sync employee data directly into CDI — no CSV upload needed.
-          </p>
-        </div>
+        <h1 class="page-title">HR System Integrations</h1>
+        <p class="page-subtitle">Connect your HRIS to sync employee data directly into CDI.</p>
       </div>
 
       <!-- BambooHR ──────────────────────────────────────────────────────────── -->
-      <mat-card class="setup-card">
-        <mat-card-header>
-          <mat-icon mat-card-avatar class="provider-icon bamboohr-color">account_tree</mat-icon>
-          <mat-card-title>Before you connect BambooHR</mat-card-title>
-          <mat-card-subtitle>Your BambooHR admin needs to complete these steps</mat-card-subtitle>
-        </mat-card-header>
+      <mat-card class="provider-card">
         <mat-card-content>
-          <ol class="setup-steps">
-            <li>Log in to BambooHR as an admin → <strong>My Account → API Keys</strong>.</li>
-            <li>Click <strong>"Add New Key"</strong>, name it <em>"CDI Integration"</em>, then click Generate.</li>
-            <li><strong>Copy the API key immediately</strong> — BambooHR only shows it once.</li>
-            <li>Note your <strong>company subdomain</strong>: the part before <code>.bamboohr.com</code> in your URL.</li>
-          </ol>
-          <div class="tip-box warn">
-            <mat-icon>lock</mat-icon>
-            <div><strong>Data accessed:</strong> employee identity, role, location, hire date, gender, and compensation (base pay, currency).</div>
-          </div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="connections-card">
-        <mat-card-header>
           <div class="provider-header">
-            <div class="provider-logo bamboohr-color">
+            <div class="provider-identity bamboohr-color">
               <mat-icon>account_tree</mat-icon>
-              <span>BambooHR</span>
+              <span class="provider-name">BambooHR</span>
             </div>
             @if (canManage) {
-              <button mat-flat-button color="primary" (click)="openAddDialog('bamboohr')">
+              <button mat-stroked-button (click)="openAddDialog('bamboohr')">
                 <mat-icon>add</mat-icon> Add Connection
               </button>
             }
           </div>
-        </mat-card-header>
-        <mat-card-content>
+
           <ng-container *ngTemplateOutlet="connectionList; context: { $implicit: bamboohrConnections }"></ng-container>
+
+          <mat-expansion-panel class="setup-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Setup guide</mat-panel-title>
+              <mat-panel-description>How to get your API key</mat-panel-description>
+            </mat-expansion-panel-header>
+            <ol class="setup-steps">
+              <li>Log in to BambooHR as an admin → <strong>My Account → API Keys</strong>.</li>
+              <li>Click <strong>"Add New Key"</strong>, name it <em>"CDI Integration"</em>, then click Generate.</li>
+              <li><strong>Copy the API key immediately</strong> — it's only shown once.</li>
+              <li>Your <strong>company subdomain</strong> is the part before <code>.bamboohr.com</code> in your URL.</li>
+            </ol>
+            <div class="data-note">
+              <mat-icon>lock_outline</mat-icon>
+              <span>Reads: employee identity, role, location, hire date, gender, and compensation.</span>
+            </div>
+          </mat-expansion-panel>
         </mat-card-content>
       </mat-card>
 
       <!-- HiBob ────────────────────────────────────────────────────────────── -->
-      <mat-card class="setup-card">
-        <mat-card-header>
-          <mat-icon mat-card-avatar class="provider-icon hibob-color">people_alt</mat-icon>
-          <mat-card-title>Before you connect HiBob</mat-card-title>
-          <mat-card-subtitle>Your HiBob admin needs to create a Service User</mat-card-subtitle>
-        </mat-card-header>
+      <mat-card class="provider-card">
         <mat-card-content>
-          <ol class="setup-steps">
-            <li>Log in to HiBob as an admin → <strong>Settings → Integrations → Service Users</strong>.</li>
-            <li>Click <strong>"Create service user"</strong>, give it a name such as <em>"CDI Integration"</em>.</li>
-            <li>
-              Grant read access to: <strong>Basic Info, Work Info, Personal Info (gender), and Payroll</strong>.
-              Without Payroll access, salary data will not be synced.
-            </li>
-            <li>Click <strong>Create</strong> — copy the <strong>Service User ID</strong> and <strong>Token</strong> immediately.
-              The token is only shown once.</li>
-          </ol>
-          <div class="tip-box warn">
-            <mat-icon>lock</mat-icon>
-            <div><strong>Data accessed:</strong> employee identity, job title, department, site, start date, legal gender, and compensation (annual salary, currency, bonus target).</div>
-          </div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="connections-card">
-        <mat-card-header>
           <div class="provider-header">
-            <div class="provider-logo hibob-color">
+            <div class="provider-identity hibob-color">
               <mat-icon>people_alt</mat-icon>
-              <span>HiBob</span>
+              <span class="provider-name">HiBob</span>
             </div>
             @if (canManage) {
-              <button mat-flat-button color="primary" (click)="openAddDialog('hibob')">
+              <button mat-stroked-button (click)="openAddDialog('hibob')">
                 <mat-icon>add</mat-icon> Add Connection
               </button>
             }
           </div>
-        </mat-card-header>
-        <mat-card-content>
+
           <ng-container *ngTemplateOutlet="connectionList; context: { $implicit: hibobConnections }"></ng-container>
+
+          <mat-expansion-panel class="setup-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Setup guide</mat-panel-title>
+              <mat-panel-description>How to create a Service User</mat-panel-description>
+            </mat-expansion-panel-header>
+            <ol class="setup-steps">
+              <li>Log in to HiBob as an admin → <strong>Settings → Integrations → Service Users</strong>.</li>
+              <li>Click <strong>"Create service user"</strong>, name it <em>"CDI Integration"</em>.</li>
+              <li>Grant read access to: <strong>Basic Info, Work Info, Personal Info, Address, and Payroll</strong>.</li>
+              <li>Click Create — copy the <strong>Service User ID</strong> and <strong>Token</strong> immediately. The token is only shown once.</li>
+            </ol>
+            <div class="data-note">
+              <mat-icon>lock_outline</mat-icon>
+              <span>Reads: employee identity, job title, department, site, start date, gender, and compensation.</span>
+            </div>
+          </mat-expansion-panel>
         </mat-card-content>
       </mat-card>
 
@@ -291,49 +275,34 @@ export class HrisConnectionDialogComponent {
       <ng-template #connectionList let-conns>
         @if (loading) {
           <div class="loading-state">
-            <mat-spinner diameter="32"></mat-spinner>
-            <span>Loading connections…</span>
+            <mat-spinner diameter="28"></mat-spinner>
           </div>
         } @else if (conns.length === 0) {
-          <div class="empty-state">
-            <mat-icon>cable</mat-icon>
-            <p>No connections configured yet.</p>
-          </div>
+          <div class="empty-state">No connections configured yet.</div>
         } @else {
           <div class="connections-list">
             @for (conn of conns; track conn.id) {
               <div class="connection-row">
                 <div class="connection-info">
                   <div class="connection-name">
-                    <span>{{ conn.name }}</span>
-                    <span class="subdomain-chip">{{ conn.subdomain }}</span>
-                    @if (!conn.isActive) {
-                      <span class="status-chip disabled">Disabled</span>
-                    } @else {
-                      <span class="status-chip active">Active</span>
-                    }
+                    {{ conn.name }}
+                    <span class="mono-chip">{{ conn.subdomain }}</span>
+                    <span class="status-chip" [class.active]="conn.isActive" [class.inactive]="!conn.isActive">
+                      {{ conn.isActive ? 'Active' : 'Disabled' }}
+                    </span>
                   </div>
                   <div class="connection-meta">
-                    @if (conn.lastSyncAt) {
-                      Last synced {{ conn.lastSyncAt | date:'dd MMM yyyy, HH:mm' }}
-                    } @else {
-                      Never synced
-                    }
+                    @if (conn.lastSyncAt) { Last synced {{ conn.lastSyncAt | date:'d MMM yyyy, HH:mm' }} }
+                    @else { Never synced }
                   </div>
                 </div>
                 <div class="connection-actions">
-                  @if (syncing[conn.id]) {
-                    <mat-spinner diameter="20"></mat-spinner>
-                  }
-                  <button mat-icon-button matTooltip="Test connection"
-                          [disabled]="!!syncing[conn.id]"
-                          (click)="testConnection(conn)">
+                  @if (syncing[conn.id]) { <mat-spinner diameter="18"></mat-spinner> }
+                  <button mat-icon-button matTooltip="Test connection" [disabled]="!!syncing[conn.id]" (click)="testConnection(conn)">
                     <mat-icon>wifi_tethering</mat-icon>
                   </button>
                   @if (canManage) {
-                    <button mat-icon-button matTooltip="Sync now"
-                            [disabled]="!conn.isActive || !!syncing[conn.id]"
-                            (click)="syncNow(conn)">
+                    <button mat-icon-button matTooltip="Sync now" [disabled]="!conn.isActive || !!syncing[conn.id]" (click)="syncNow(conn)">
                       <mat-icon>sync</mat-icon>
                     </button>
                     <button mat-icon-button matTooltip="Edit" (click)="openEditDialog(conn)">
@@ -351,121 +320,69 @@ export class HrisConnectionDialogComponent {
           </div>
         }
       </ng-template>
-
-      <!-- Field Mapping Info ────────────────────────────────────────────────── -->
-      <mat-card class="info-card">
-        <mat-card-header>
-          <mat-card-title>How employee data is mapped</mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <h4 style="margin:0 0 8px;font-size:13px;font-weight:600;color:#555">BambooHR</h4>
-          <div class="mapping-table-wrapper">
-            <table class="mapping-table">
-              <thead><tr><th>CDI Field</th><th>BambooHR Field</th><th>Notes</th></tr></thead>
-              <tbody>
-                <tr><td>Employee ID</td><td>employeeNumber</td><td>Stable HR ID (not internal BambooHR ID)</td></tr>
-                <tr><td>Role Title</td><td>jobTitle</td><td></td></tr>
-                <tr><td>Job Family</td><td>department</td><td></td></tr>
-                <tr><td>Level</td><td>customLevel</td><td>Custom field — falls back to <em>department</em></td></tr>
-                <tr><td>Country</td><td>country</td><td>Normalised to ISO 2-letter code</td></tr>
-                <tr><td>Location</td><td>location</td><td></td></tr>
-                <tr><td>Base Salary</td><td>payRate</td><td>Automatically annualised based on payPeriod</td></tr>
-                <tr><td>Hire Date</td><td>hireDate</td><td></td></tr>
-                <tr><td>Gender</td><td>gender</td><td>Used for risk analysis only</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <h4 style="margin:16px 0 8px;font-size:13px;font-weight:600;color:#555">HiBob</h4>
-          <div class="mapping-table-wrapper">
-            <table class="mapping-table">
-              <thead><tr><th>CDI Field</th><th>HiBob Field Path</th><th>Notes</th></tr></thead>
-              <tbody>
-                <tr><td>Employee ID</td><td>work.employeeIdInCompany</td><td>Falls back to HiBob internal ID</td></tr>
-                <tr><td>Full Name</td><td>root.fullName</td><td></td></tr>
-                <tr><td>Role Title</td><td>work.title</td><td></td></tr>
-                <tr><td>Job Family</td><td>work.department</td><td></td></tr>
-                <tr><td>Level</td><td>employee.orgLevel</td><td>Standard org level field</td></tr>
-                <tr><td>Country</td><td>address.siteCountry</td><td>Work site country, normalised to ISO code</td></tr>
-                <tr><td>Location</td><td>work.site</td><td>Office site name</td></tr>
-                <tr><td>Base Salary</td><td>payroll.salary.yearlyPayment</td><td>Annual salary; falls back to payment + payPeriod annualisation</td></tr>
-                <tr><td>Currency</td><td>payroll.salary.payment.currency</td><td></td></tr>
-                <tr><td>Bonus Target</td><td>payroll.variable.Bonus.amount</td><td>Or % of annual salary if amount not set</td></tr>
-                <tr><td>Hire Date</td><td>work.startDate</td><td></td></tr>
-                <tr><td>Employment Type</td><td>payroll.employment.type</td><td></td></tr>
-                <tr><td>Gender</td><td>home.legalGender</td><td>Used for risk analysis only; requires Personal Info permission</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </mat-card-content>
-      </mat-card>
     </div>
   `,
   styles: [`
-    .page-container { padding: 24px; max-width: 960px; }
-    .page-header { margin-bottom: 24px; }
-    .page-title { margin: 0 0 4px; font-size: 24px; font-weight: 600; }
+    .page-container { padding: 24px; max-width: 860px; }
+    .page-header { margin-bottom: 20px; }
+    .page-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
     .page-subtitle { margin: 0; color: #666; font-size: 14px; }
 
-    .setup-card, .connections-card, .info-card { margin-bottom: 16px; }
-
-    .setup-steps {
-      margin: 0 0 16px; padding-left: 20px;
-      li { margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
-      code { background: #f5f5f5; padding: 1px 5px; border-radius: 3px; font-family: monospace; }
-    }
-    .tip-box {
-      display: flex; gap: 10px; padding: 12px 14px; border-radius: 8px;
-      font-size: 13px; margin-top: 12px;
-      &.warn { background: #fff8e1; mat-icon { color: #f57f17; } }
-    }
+    .provider-card { margin-bottom: 16px; }
+    .provider-card mat-card-content { padding: 20px !important; }
 
     .provider-header {
       display: flex; justify-content: space-between; align-items: center;
-      width: 100%; padding: 4px 0;
+      margin-bottom: 16px;
     }
-    .provider-logo {
-      display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px;
-      mat-icon { font-size: 22px; }
+    .provider-identity {
+      display: flex; align-items: center; gap: 8px;
+      mat-icon { font-size: 20px; width: 20px; height: 20px; }
     }
-    .provider-icon { font-size: 22px !important; width: 22px !important; height: 22px !important; }
+    .provider-name { font-size: 16px; font-weight: 600; }
     .bamboohr-color { color: #7ab648; }
     .hibob-color { color: #5b4fe9; }
 
-    .loading-state, .empty-state {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 12px; padding: 32px; color: #888; text-align: center;
-      mat-icon { font-size: 36px; width: 36px; height: 36px; color: #ccc; }
-    }
-    .connections-list { display: flex; flex-direction: column; }
+    .loading-state { display: flex; justify-content: center; padding: 24px; }
+    .empty-state { color: #999; font-size: 13px; padding: 12px 0 16px; }
+
+    .connections-list { margin-bottom: 8px; }
     .connection-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 0; border-bottom: 1px solid #f0f0f0;
+      padding: 10px 0; border-bottom: 1px solid #f0f0f0;
       &:last-child { border-bottom: none; }
     }
-    .connection-info { flex: 1; }
+    .connection-info { flex: 1; min-width: 0; }
     .connection-name {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
-      font-weight: 500; font-size: 14px;
+      display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500;
+      margin-bottom: 2px;
     }
-    .subdomain-chip {
-      font-size: 12px; color: #555; background: #f5f5f5;
-      padding: 2px 8px; border-radius: 12px; font-family: monospace;
+    .mono-chip {
+      font-size: 11px; font-family: monospace; color: #555;
+      background: #f5f5f5; padding: 2px 7px; border-radius: 10px;
     }
     .status-chip {
-      font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 500;
+      font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 500;
       &.active { background: #e8f5e9; color: #2e7d32; }
-      &.disabled { background: #fafafa; color: #999; }
+      &.inactive { background: #f5f5f5; color: #999; }
     }
-    .connection-meta { font-size: 12px; color: #888; }
-    .connection-actions { display: flex; align-items: center; gap: 4px; }
+    .connection-meta { font-size: 12px; color: #999; }
+    .connection-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 
-    .mapping-table-wrapper { overflow-x: auto; }
-    .mapping-table {
-      width: 100%; border-collapse: collapse; font-size: 13px;
-      th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }
-      th { font-weight: 600; background: #fafafa; }
-      td:nth-child(2) { font-family: monospace; font-size: 12px; color: #555; }
+    .setup-panel {
+      margin-top: 12px; box-shadow: none !important;
+      border: 1px solid #eee; border-radius: 6px !important;
+      background: #fafafa !important;
+    }
+    .setup-steps {
+      margin: 4px 0 12px; padding-left: 18px;
+      li { margin-bottom: 8px; font-size: 13px; line-height: 1.5; color: #444; }
+      code { background: #eee; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    }
+    .data-note {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 12px; color: #777; padding-top: 4px;
+      mat-icon { font-size: 16px; width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
     }
   `],
 })
