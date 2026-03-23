@@ -1,11 +1,12 @@
 import { z } from 'zod';
 
-export const SUPPORTED_HRIS_PROVIDERS = ['bamboohr', 'hibob'] as const;
+export const SUPPORTED_HRIS_PROVIDERS = ['bamboohr', 'hibob', 'rippling'] as const;
 export type HrisProvider = (typeof SUPPORTED_HRIS_PROVIDERS)[number];
 
 export const hrisProviderLabels: Record<HrisProvider, string> = {
   bamboohr: 'BambooHR',
   hibob: 'HiBob',
+  rippling: 'Rippling',
 };
 
 export interface HrisConnection {
@@ -63,6 +64,11 @@ export interface HrisSyncResponse {
   status: 'PROCESSING';
   message: string;
 }
+
+// Rippling-specific field mapping hint
+export const RIPPLING_LEVEL_FIELD_HINT =
+  'Rippling has a native "Level" field (level.name) which CDI reads automatically. ' +
+  'No custom field configuration is required for level.';
 
 // BambooHR-specific field mapping options (for advanced config UI)
 export const BAMBOOHR_LEVEL_FIELD_OPTIONS = [

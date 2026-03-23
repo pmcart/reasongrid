@@ -87,6 +87,28 @@ import { hrisProviderLabels } from '@cdi/shared';
           </mat-form-field>
         }
 
+        @if (data.provider === 'rippling') {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Company Name</mat-label>
+            <input matInput formControlName="subdomain" placeholder="e.g. Acme Corp" />
+            <mat-hint>A label to identify this Rippling account — not used in API calls</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>API Token</mat-label>
+            <input matInput formControlName="apiKey" [type]="showKey ? 'text' : 'password'"
+                   placeholder="{{ data.connection ? 'Enter new token to update' : 'Paste your Rippling API token' }}" />
+            <button mat-icon-button matSuffix type="button" (click)="showKey = !showKey">
+              <mat-icon>{{ showKey ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            @if (data.connection) {
+              <mat-hint>Leave blank to keep the existing token</mat-hint>
+            } @else {
+              <mat-hint>Generated at Tools → Developer → API Tokens (requires API Key Package add-on)</mat-hint>
+            }
+          </mat-form-field>
+        }
+
         @if (testResult) {
           <div class="test-result" [class.success]="testResult.success" [class.error]="!testResult.success">
             <mat-icon>{{ testResult.success ? 'check_circle' : 'error' }}</mat-icon>
@@ -271,6 +293,50 @@ export class HrisConnectionDialogComponent {
         </mat-card-content>
       </mat-card>
 
+      <!-- Rippling ──────────────────────────────────────────────────────────── -->
+      <mat-card class="provider-card">
+        <mat-card-content>
+          <div class="provider-header">
+            <div class="provider-identity rippling-color">
+              <mat-icon>corporate_fare</mat-icon>
+              <span class="provider-name">Rippling</span>
+            </div>
+            @if (canManage) {
+              <button mat-stroked-button (click)="openAddDialog('rippling')">
+                <mat-icon>add</mat-icon> Add Connection
+              </button>
+            }
+          </div>
+
+          <ng-container *ngTemplateOutlet="connectionList; context: { $implicit: ripplingConnections }"></ng-container>
+
+          <mat-expansion-panel class="setup-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Setup guide</mat-panel-title>
+              <mat-panel-description>How to generate an API token</mat-panel-description>
+            </mat-expansion-panel-header>
+            <div class="api-package-notice">
+              <mat-icon>info_outline</mat-icon>
+              <span>
+                <strong>Requires the Rippling API Key Package add-on.</strong>
+                If you cannot see API Tokens under Tools → Developer, contact your Rippling account representative to enable it.
+              </span>
+            </div>
+            <ol class="setup-steps">
+              <li>Log in to Rippling as a <strong>Super Admin</strong> → <strong>Tools → Developer → API Tokens</strong>.</li>
+              <li>Click <strong>"Create API token"</strong>, give it a name (e.g., <em>"CDI Integration"</em>), and select API version <strong>v2</strong>.</li>
+              <li>Add these scopes: <code>workers.read</code>, <code>compensation.read</code>, and <code>workers.custom-fields.read</code>. For gender data also add <code>workers.sensitive.personal.read</code>.</li>
+              <li><strong>Copy the token immediately</strong> — it cannot be viewed again and expires after 30 days of inactivity.</li>
+              <li>The token owner must have a <strong>Super Admin or company-wide permission profile</strong> to sync all employees. Manager-scoped tokens only return direct reports.</li>
+            </ol>
+            <div class="data-note">
+              <mat-icon>lock_outline</mat-icon>
+              <span>Reads: worker identity, job title, department, level, country, hire date, gender, employment type, and compensation (annual salary + bonus target).</span>
+            </div>
+          </mat-expansion-panel>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Shared connection list template -->
       <ng-template #connectionList let-conns>
         @if (loading) {
@@ -342,6 +408,7 @@ export class HrisConnectionDialogComponent {
     .provider-name { font-size: 16px; font-weight: 600; }
     .bamboohr-color { color: #7ab648; }
     .hibob-color { color: #5b4fe9; }
+    .rippling-color { color: #ff5c35; }
 
     .loading-state { display: flex; justify-content: center; padding: 24px; }
     .empty-state { color: #999; font-size: 13px; padding: 12px 0 16px; }
@@ -384,6 +451,12 @@ export class HrisConnectionDialogComponent {
       font-size: 12px; color: #777; padding-top: 4px;
       mat-icon { font-size: 16px; width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
     }
+    .api-package-notice {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 13px; color: #5d4037; background: #fff3e0;
+      padding: 10px 12px; border-radius: 6px; margin-bottom: 12px;
+      mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; color: #e65100; }
+    }
   `],
 })
 export class IntegrationsComponent implements OnInit {
@@ -408,6 +481,10 @@ export class IntegrationsComponent implements OnInit {
 
   get hibobConnections() {
     return this.connections.filter((c) => c.provider === 'hibob');
+  }
+
+  get ripplingConnections() {
+    return this.connections.filter((c) => c.provider === 'rippling');
   }
 
   ngOnInit() {

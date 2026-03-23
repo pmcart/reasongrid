@@ -13,6 +13,7 @@ import { prisma } from '../lib/prisma.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { testBambooHrConnection, fetchBambooHrEmployees } from '../services/bamboohr.js';
 import { testHiBobConnection, fetchHiBobEmployees } from '../services/hibob.js';
+import { testRipplingConnection, fetchRipplingEmployees } from '../services/rippling.js';
 import { processHrisImport } from '../services/csv-processor.js';
 import { logAudit } from '../services/audit.js';
 
@@ -90,8 +91,8 @@ hrisRouter.post('/connections', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), 
       return;
     }
 
-    if (provider !== 'bamboohr' && provider !== 'hibob') {
-      res.status(400).json({ error: `Unsupported provider: ${provider}. Supported: bamboohr, hibob` });
+    if (provider !== 'bamboohr' && provider !== 'hibob' && provider !== 'rippling') {
+      res.status(400).json({ error: `Unsupported provider: ${provider}. Supported: bamboohr, hibob, rippling` });
       return;
     }
 
@@ -195,9 +196,14 @@ hrisRouter.post('/connections/:id/test', authorize(UserRole.ADMIN, UserRole.HR_M
       return;
     }
 
-    const result = connection.provider === 'hibob'
-      ? await testHiBobConnection(connection.subdomain, connection.apiKey)
-      : await testBambooHrConnection(connection.subdomain, connection.apiKey);
+    let result;
+    if (connection.provider === 'hibob') {
+      result = await testHiBobConnection(connection.subdomain, connection.apiKey);
+    } else if (connection.provider === 'rippling') {
+      result = await testRipplingConnection(connection.apiKey);
+    } else {
+      result = await testBambooHrConnection(connection.subdomain, connection.apiKey);
+    }
     res.json(result);
   } catch (err) {
     next(err);
@@ -214,9 +220,14 @@ hrisRouter.post('/test-credentials', authorize(UserRole.ADMIN, UserRole.HR_MANAG
       return;
     }
 
-    const result = provider === 'hibob'
-      ? await testHiBobConnection(subdomain.trim(), apiKey)
-      : await testBambooHrConnection(subdomain.trim().toLowerCase(), apiKey);
+    let result;
+    if (provider === 'hibob') {
+      result = await testHiBobConnection(subdomain.trim(), apiKey);
+    } else if (provider === 'rippling') {
+      result = await testRipplingConnection(apiKey);
+    } else {
+      result = await testBambooHrConnection(subdomain.trim().toLowerCase(), apiKey);
+    }
     res.json(result);
   } catch (err) {
     next(err);
@@ -236,9 +247,14 @@ hrisRouter.get('/connections/:id/preview', authorize(UserRole.ADMIN, UserRole.HR
     }
 
     const fieldMapping = connection.fieldMappingJson as Record<string, string> | null ?? undefined;
-    const { employees, errors } = connection.provider === 'hibob'
-      ? await fetchHiBobEmployees(connection.subdomain, connection.apiKey, fieldMapping)
-      : await fetchBambooHrEmployees(connection.subdomain, connection.apiKey, fieldMapping);
+    let employees, errors;
+    if (connection.provider === 'hibob') {
+      ({ employees, errors } = await fetchHiBobEmployees(connection.subdomain, connection.apiKey, fieldMapping));
+    } else if (connection.provider === 'rippling') {
+      ({ employees, errors } = await fetchRipplingEmployees(connection.apiKey, fieldMapping));
+    } else {
+      ({ employees, errors } = await fetchBambooHrEmployees(connection.subdomain, connection.apiKey, fieldMapping));
+    }
 
     // Return a preview (first 10 rows + stats)
     res.json({
@@ -304,9 +320,14 @@ hrisRouter.post('/connections/:id/sync', authorize(UserRole.ADMIN, UserRole.HR_M
     (async () => {
       try {
         const fieldMapping = connection.fieldMappingJson as Record<string, string> | null ?? undefined;
-        const { employees, errors } = connection.provider === 'hibob'
-          ? await fetchHiBobEmployees(connection.subdomain, connection.apiKey, fieldMapping)
-          : await fetchBambooHrEmployees(connection.subdomain, connection.apiKey, fieldMapping);
+        let employees, errors;
+        if (connection.provider === 'hibob') {
+          ({ employees, errors } = await fetchHiBobEmployees(connection.subdomain, connection.apiKey, fieldMapping));
+        } else if (connection.provider === 'rippling') {
+          ({ employees, errors } = await fetchRipplingEmployees(connection.apiKey, fieldMapping));
+        } else {
+          ({ employees, errors } = await fetchBambooHrEmployees(connection.subdomain, connection.apiKey, fieldMapping));
+        }
 
         await processHrisImport(importJob.id, employees, errors, organizationId);
 
