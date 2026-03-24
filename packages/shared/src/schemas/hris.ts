@@ -1,12 +1,13 @@
 import { z } from 'zod';
 
-export const SUPPORTED_HRIS_PROVIDERS = ['bamboohr', 'hibob', 'rippling'] as const;
+export const SUPPORTED_HRIS_PROVIDERS = ['bamboohr', 'hibob', 'rippling', 'personio'] as const;
 export type HrisProvider = (typeof SUPPORTED_HRIS_PROVIDERS)[number];
 
 export const hrisProviderLabels: Record<HrisProvider, string> = {
   bamboohr: 'BambooHR',
   hibob: 'HiBob',
   rippling: 'Rippling',
+  personio: 'Personio',
 };
 
 export interface HrisConnection {
@@ -78,3 +79,9 @@ export const BAMBOOHR_LEVEL_FIELD_OPTIONS = [
   { value: 'customLevel3', label: 'customLevel3' },
   { value: 'department', label: 'Department (fallback)' },
 ];
+
+// Personio-specific field mapping hint
+export const PERSONIO_LEVEL_FIELD_HINT =
+  'Personio has no standard Level field. It is stored as a custom attribute. ' +
+  'Enter the attribute key (e.g. "dynamic_12345") or its label (e.g. "Level"). ' +
+  'If left blank, CDI will attempt to auto-detect it by scanning attribute labels.';

@@ -109,6 +109,28 @@ import { hrisProviderLabels } from '@cdi/shared';
           </mat-form-field>
         }
 
+        @if (data.provider === 'personio') {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Client ID</mat-label>
+            <input matInput formControlName="subdomain" placeholder="e.g. 0oa1b2c3d4e5f6g7h8i9" />
+            <mat-hint>From Personio: Settings → Integrations → API credentials → Client ID</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Client Secret</mat-label>
+            <input matInput formControlName="apiKey" [type]="showKey ? 'text' : 'password'"
+                   placeholder="{{ data.connection ? 'Enter new secret to update' : 'Paste your Personio Client Secret' }}" />
+            <button mat-icon-button matSuffix type="button" (click)="showKey = !showKey">
+              <mat-icon>{{ showKey ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            @if (data.connection) {
+              <mat-hint>Leave blank to keep the existing secret</mat-hint>
+            } @else {
+              <mat-hint>From Personio: Settings → Integrations → API credentials → Client Secret</mat-hint>
+            }
+          </mat-form-field>
+        }
+
         @if (testResult) {
           <div class="test-result" [class.success]="testResult.success" [class.error]="!testResult.success">
             <mat-icon>{{ testResult.success ? 'check_circle' : 'error' }}</mat-icon>
@@ -337,6 +359,43 @@ export class HrisConnectionDialogComponent {
         </mat-card-content>
       </mat-card>
 
+      <!-- Personio ───────────────────────────────────────────────────────────── -->
+      <mat-card class="provider-card">
+        <mat-card-content>
+          <div class="provider-header">
+            <div class="provider-identity personio-color">
+              <mat-icon>badge</mat-icon>
+              <span class="provider-name">Personio</span>
+            </div>
+            @if (canManage) {
+              <button mat-stroked-button (click)="openAddDialog('personio')">
+                <mat-icon>add</mat-icon> Add Connection
+              </button>
+            }
+          </div>
+
+          <ng-container *ngTemplateOutlet="connectionList; context: { $implicit: personioConnections }"></ng-container>
+
+          <mat-expansion-panel class="setup-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Setup guide</mat-panel-title>
+              <mat-panel-description>How to get your API credentials</mat-panel-description>
+            </mat-expansion-panel-header>
+            <ol class="setup-steps">
+              <li>Log in to Personio as an admin → <strong>Settings → Integrations → API credentials</strong>.</li>
+              <li>Click <strong>"Generate new credentials"</strong> and give them a name (e.g., <em>"CDI Integration"</em>).</li>
+              <li>In the attribute permissions panel, enable <strong>read access</strong> for: <strong>Employee data, Salary (fix_salary), Personal data (gender), Position, Department, Office, Hire date, Employment type</strong>.</li>
+              <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> — the secret is only shown once.</li>
+              <li><strong>Note on Level:</strong> Personio has no standard Level field. If your organisation stores it as a custom attribute, note its key (e.g. <code>dynamic_12345</code>) from the attribute list — you can configure it after adding the connection.</li>
+            </ol>
+            <div class="data-note">
+              <mat-icon>lock_outline</mat-icon>
+              <span>Reads: employee identity, position, department, office/country, hire date, gender, employment type, and fixed salary.</span>
+            </div>
+          </mat-expansion-panel>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Shared connection list template -->
       <ng-template #connectionList let-conns>
         @if (loading) {
@@ -409,6 +468,7 @@ export class HrisConnectionDialogComponent {
     .bamboohr-color { color: #7ab648; }
     .hibob-color { color: #5b4fe9; }
     .rippling-color { color: #ff5c35; }
+    .personio-color { color: #e5007d; }
 
     .loading-state { display: flex; justify-content: center; padding: 24px; }
     .empty-state { color: #999; font-size: 13px; padding: 12px 0 16px; }
@@ -485,6 +545,10 @@ export class IntegrationsComponent implements OnInit {
 
   get ripplingConnections() {
     return this.connections.filter((c) => c.provider === 'rippling');
+  }
+
+  get personioConnections() {
+    return this.connections.filter((c) => c.provider === 'personio');
   }
 
   ngOnInit() {

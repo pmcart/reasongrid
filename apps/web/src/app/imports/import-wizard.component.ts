@@ -17,6 +17,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { ImportService } from './import.service';
 import { HrisService } from '../core/hris.service';
 import type { CsvUploadResponse, ImportPreview, PreviewRow, HrisConnection, HrisSyncPreview } from '@cdi/shared';
+import { hrisProviderLabels } from '@cdi/shared';
 
 const STANDARD_EMPLOYEE_FIELDS = [
   { key: 'employeeId', label: 'Employee ID', required: true },
@@ -87,9 +88,9 @@ interface MappingRow {
             <button mat-flat-button color="primary">Choose CSV</button>
           </div>
           <div class="source-card" (click)="selectSource('hris')">
-            <mat-icon class="source-icon hris">account_tree</mat-icon>
+            <mat-icon class="source-icon hris">hub</mat-icon>
             <h3>Sync from HRIS</h3>
-            <p>Connect directly to BambooHR to sync employee and salary data automatically — no file needed.</p>
+            <p>Connect directly to BambooHR, HiBob, Rippling, or Personio to sync employee and salary data automatically — no file needed.</p>
             <button mat-flat-button color="accent">Connect HRIS</button>
           </div>
         </div>
@@ -112,7 +113,7 @@ interface MappingRow {
                 <div class="empty-connections">
                   <mat-icon>cable</mat-icon>
                   <h3>No HRIS connections configured</h3>
-                  <p>You need to set up a BambooHR connection before you can sync employees.</p>
+                  <p>Set up a connection to BambooHR, HiBob, Rippling, or Personio to sync employees directly.</p>
                   <a mat-flat-button color="primary" routerLink="/settings/integrations">
                     <mat-icon>settings</mat-icon> Go to Integrations Settings
                   </a>
@@ -123,10 +124,13 @@ interface MappingRow {
                   @for (conn of hrisConnections; track conn.id) {
                     <div class="connection-option" [class.selected]="selectedHrisConnection?.id === conn.id"
                          (click)="selectHrisConnection(conn)">
-                      <mat-icon class="conn-icon">account_tree</mat-icon>
+                      <mat-icon class="conn-icon" [style.color]="providerColor(conn.provider)">{{ providerIcon(conn.provider) }}</mat-icon>
                       <div class="conn-info">
-                        <span class="conn-name">{{ conn.name }}</span>
-                        <span class="conn-sub">{{ conn.subdomain }}.bamboohr.com</span>
+                        <span class="conn-name">
+                          {{ conn.name }}
+                          <span class="provider-badge">{{ providerLabel(conn.provider) }}</span>
+                        </span>
+                        <span class="conn-sub">{{ conn.subdomain }}</span>
                         @if (conn.lastSyncAt) {
                           <span class="conn-last">Last synced {{ conn.lastSyncAt | date:'dd MMM yyyy' }}</span>
                         } @else {
@@ -230,7 +234,7 @@ interface MappingRow {
               @if (polling) {
                 <div class="results-loading">
                   <mat-spinner diameter="48"></mat-spinner>
-                  <p>Syncing employees from BambooHR…</p>
+                  <p>Syncing employees from {{ providerLabel(selectedHrisConnection?.provider) }}…</p>
                   <mat-progress-bar mode="indeterminate"></mat-progress-bar>
                 </div>
               } @else if (importResult) {
@@ -967,7 +971,7 @@ interface MappingRow {
       &.selected { border-color: #4f46e5; background: #eef2ff; }
     }
 
-    .conn-icon { font-size: 28px; width: 28px; height: 28px; color: #7ab648; }
+    .conn-icon { font-size: 28px; width: 28px; height: 28px; }
 
     .conn-info {
       display: flex;
@@ -976,7 +980,8 @@ interface MappingRow {
       flex: 1;
     }
 
-    .conn-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+    .conn-name { font-size: 14px; font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+    .provider-badge { font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 10px; background: #f1f5f9; color: #475569; }
     .conn-sub { font-size: 12px; color: #555; font-family: monospace; }
     .conn-last { font-size: 11px; color: #94a3b8; }
 
@@ -1055,6 +1060,30 @@ export class ImportWizardComponent implements OnInit {
       next: (c) => { this.hrisConnections = c; this.cdr.markForCheck(); },
       error: () => {},
     });
+  }
+
+  providerLabel(provider: string | undefined): string {
+    return provider ? (hrisProviderLabels[provider as keyof typeof hrisProviderLabels] ?? provider) : '';
+  }
+
+  providerIcon(provider: string | undefined): string {
+    const icons: Record<string, string> = {
+      bamboohr: 'account_tree',
+      hibob: 'people_alt',
+      rippling: 'corporate_fare',
+      personio: 'badge',
+    };
+    return icons[provider ?? ''] ?? 'hub';
+  }
+
+  providerColor(provider: string | undefined): string {
+    const colors: Record<string, string> = {
+      bamboohr: '#7ab648',
+      hibob: '#5b4fe9',
+      rippling: '#ff5c35',
+      personio: '#e5007d',
+    };
+    return colors[provider ?? ''] ?? '#64748b';
   }
 
   selectSource(source: 'csv' | 'hris') {

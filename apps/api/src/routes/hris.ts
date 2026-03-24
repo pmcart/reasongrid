@@ -14,6 +14,7 @@ import { authenticate, authorize } from '../middleware/auth.js';
 import { testBambooHrConnection, fetchBambooHrEmployees } from '../services/bamboohr.js';
 import { testHiBobConnection, fetchHiBobEmployees } from '../services/hibob.js';
 import { testRipplingConnection, fetchRipplingEmployees } from '../services/rippling.js';
+import { testPersonioConnection, fetchPersonioEmployees } from '../services/personio.js';
 import { processHrisImport } from '../services/csv-processor.js';
 import { logAudit } from '../services/audit.js';
 
@@ -91,8 +92,8 @@ hrisRouter.post('/connections', authorize(UserRole.ADMIN, UserRole.HR_MANAGER), 
       return;
     }
 
-    if (provider !== 'bamboohr' && provider !== 'hibob' && provider !== 'rippling') {
-      res.status(400).json({ error: `Unsupported provider: ${provider}. Supported: bamboohr, hibob, rippling` });
+    if (provider !== 'bamboohr' && provider !== 'hibob' && provider !== 'rippling' && provider !== 'personio') {
+      res.status(400).json({ error: `Unsupported provider: ${provider}. Supported: bamboohr, hibob, rippling, personio` });
       return;
     }
 
@@ -201,6 +202,8 @@ hrisRouter.post('/connections/:id/test', authorize(UserRole.ADMIN, UserRole.HR_M
       result = await testHiBobConnection(connection.subdomain, connection.apiKey);
     } else if (connection.provider === 'rippling') {
       result = await testRipplingConnection(connection.apiKey);
+    } else if (connection.provider === 'personio') {
+      result = await testPersonioConnection(connection.subdomain, connection.apiKey);
     } else {
       result = await testBambooHrConnection(connection.subdomain, connection.apiKey);
     }
@@ -225,6 +228,8 @@ hrisRouter.post('/test-credentials', authorize(UserRole.ADMIN, UserRole.HR_MANAG
       result = await testHiBobConnection(subdomain.trim(), apiKey);
     } else if (provider === 'rippling') {
       result = await testRipplingConnection(apiKey);
+    } else if (provider === 'personio') {
+      result = await testPersonioConnection(subdomain.trim(), apiKey);
     } else {
       result = await testBambooHrConnection(subdomain.trim().toLowerCase(), apiKey);
     }
@@ -252,6 +257,8 @@ hrisRouter.get('/connections/:id/preview', authorize(UserRole.ADMIN, UserRole.HR
       ({ employees, errors } = await fetchHiBobEmployees(connection.subdomain, connection.apiKey, fieldMapping));
     } else if (connection.provider === 'rippling') {
       ({ employees, errors } = await fetchRipplingEmployees(connection.apiKey, fieldMapping));
+    } else if (connection.provider === 'personio') {
+      ({ employees, errors } = await fetchPersonioEmployees(connection.subdomain, connection.apiKey, fieldMapping));
     } else {
       ({ employees, errors } = await fetchBambooHrEmployees(connection.subdomain, connection.apiKey, fieldMapping));
     }
@@ -325,6 +332,8 @@ hrisRouter.post('/connections/:id/sync', authorize(UserRole.ADMIN, UserRole.HR_M
           ({ employees, errors } = await fetchHiBobEmployees(connection.subdomain, connection.apiKey, fieldMapping));
         } else if (connection.provider === 'rippling') {
           ({ employees, errors } = await fetchRipplingEmployees(connection.apiKey, fieldMapping));
+        } else if (connection.provider === 'personio') {
+          ({ employees, errors } = await fetchPersonioEmployees(connection.subdomain, connection.apiKey, fieldMapping));
         } else {
           ({ employees, errors } = await fetchBambooHrEmployees(connection.subdomain, connection.apiKey, fieldMapping));
         }
