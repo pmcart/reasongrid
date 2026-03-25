@@ -1,6 +1,6 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatInputModule } from '@angular/material/input';
@@ -19,6 +19,12 @@ interface EmployeeListResponse {
   coverage: { withDecisions: number; totalEmployees: number };
 }
 
+const FILTER_LABELS: Record<string, string> = {
+  'no-decisions': 'Showing employees without a finalised pay decision',
+  'no-classification': 'Showing employees without a job family classification',
+  'no-gender': 'Showing employees without gender data recorded',
+};
+
 @Component({
   selector: 'app-employee-list',
   standalone: true,
@@ -35,6 +41,17 @@ interface EmployeeListResponse {
           <p class="page-description">View and manage your organization's employee records</p>
         </div>
       </div>
+
+      @if (activeFilter) {
+        <div class="filter-banner">
+          <mat-icon class="filter-icon">filter_list</mat-icon>
+          <span>{{ filterLabel }}</span>
+          <a mat-button color="primary" routerLink="/employees" class="clear-filter">
+            Clear filter
+            <mat-icon>close</mat-icon>
+          </a>
+        </div>
+      }
 
       <div class="search-bar">
         <mat-form-field appearance="outline" class="search-field">
@@ -149,6 +166,32 @@ interface EmployeeListResponse {
         color: #0f172a;
         margin: 0 0 4px 0;
       }
+    }
+
+    .filter-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #1d4ed8;
+      font-weight: 500;
+    }
+
+    .filter-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #3b82f6;
+    }
+
+    .clear-filter {
+      margin-left: auto;
+      font-size: 12px;
     }
 
     .search-bar {
@@ -272,11 +315,20 @@ export class EmployeeListComponent implements OnInit {
   loading = false;
   coverage: { withDecisions: number; totalEmployees: number } | null = null;
   displayedColumns = ['employeeId', 'roleTitle', 'level', 'country', 'baseSalary', 'decisions', 'actions'];
+  activeFilter: string | null = null;
 
-  constructor(private api: ApiService, private cdr: ChangeDetectorRef) {}
+  get filterLabel(): string {
+    return this.activeFilter ? (FILTER_LABELS[this.activeFilter] ?? '') : '';
+  }
+
+  constructor(private api: ApiService, private cdr: ChangeDetectorRef, private route: ActivatedRoute) {}
 
   ngOnInit() {
-    this.loadEmployees();
+    this.route.queryParamMap.subscribe(params => {
+      this.activeFilter = params.get('filter');
+      this.page = 1;
+      this.loadEmployees();
+    });
   }
 
   loadEmployees() {
@@ -286,6 +338,7 @@ export class EmployeeListComponent implements OnInit {
       pageSize: String(this.pageSize),
     };
     if (this.searchQuery) params['q'] = this.searchQuery;
+    if (this.activeFilter) params['filter'] = this.activeFilter;
 
     this.api.get<EmployeeListResponse>('/employees', params).subscribe({
       next: (res) => {

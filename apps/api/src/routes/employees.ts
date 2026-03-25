@@ -18,6 +18,7 @@ employeeRouter.use(authenticate);
 employeeRouter.get('/', async (req, res, next) => {
   try {
     const query = employeeListQuerySchema.parse(req.query);
+    const rawFilter = req.query['filter'] as string | undefined;
     const where: Record<string, unknown> = {
       organizationId: req.user!.organizationId!,
     };
@@ -29,6 +30,13 @@ employeeRouter.get('/', async (req, res, next) => {
         { employeeId: { contains: query.q, mode: 'insensitive' } },
         { roleTitle: { contains: query.q, mode: 'insensitive' } },
       ];
+    }
+    if (rawFilter === 'no-decisions') {
+      where['payDecisions'] = { none: {} };
+    } else if (rawFilter === 'no-classification') {
+      where['jobFamily'] = null;
+    } else if (rawFilter === 'no-gender') {
+      where['gender'] = null;
     }
 
     const [employees, total] = await Promise.all([

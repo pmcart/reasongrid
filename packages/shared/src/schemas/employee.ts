@@ -25,6 +25,7 @@ export const employeeListQuerySchema = z.object({
   jobFamily: z.string().optional(),
   level: z.string().optional(),
   q: z.string().optional(),
+  filter: z.enum(['no-decisions', 'no-classification', 'no-gender']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });

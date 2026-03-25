@@ -8,6 +8,15 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ComplianceService, ReadinessMetrics } from '../core/compliance.service';
 
+interface PriorityAction {
+  icon: string;
+  title: string;
+  description: string;
+  link: string;
+  queryParams?: Record<string, string>;
+  weight: number;
+}
+
 @Component({
   selector: 'app-readiness-dashboard',
   standalone: true,
@@ -57,6 +66,36 @@ import { ComplianceService, ReadinessMetrics } from '../core/compliance.service'
             </div>
           </div>
         </div>
+
+        <!-- Priority Action List -->
+        @if (topActions.length > 0) {
+          <div class="action-list-card">
+            <div class="action-list-header">
+              <mat-icon class="action-list-icon">flag</mat-icon>
+              <div>
+                <h2 class="action-list-title">Your top {{ topActions.length }} actions before 7 June 2026</h2>
+                <p class="action-list-subtitle">Prioritised by impact on your readiness score</p>
+              </div>
+            </div>
+            <div class="action-items">
+              @for (action of topActions; track action.title; let i = $index) {
+                <div class="action-item">
+                  <div class="action-rank">{{ i + 1 }}</div>
+                  <mat-icon class="action-item-icon">{{ action.icon }}</mat-icon>
+                  <div class="action-item-body">
+                    <p class="action-item-title">{{ action.title }}</p>
+                    <p class="action-item-desc">{{ action.description }}</p>
+                  </div>
+                  <a mat-stroked-button color="primary" class="action-item-cta"
+                     [routerLink]="action.link" [queryParams]="action.queryParams ?? {}">
+                    Go
+                    <mat-icon>arrow_forward</mat-icon>
+                  </a>
+                </div>
+              }
+            </div>
+          </div>
+        }
 
         <!-- Metric Cards Grid -->
         <div class="metrics-grid">
@@ -119,7 +158,7 @@ import { ComplianceService, ReadinessMetrics } from '../core/compliance.service'
               }
             </div>
             <div class="metric-footer">
-              <a mat-button color="primary" routerLink="/employees">
+              <a mat-button color="primary" routerLink="/employees" [queryParams]="{ filter: 'no-decisions' }">
                 Go to Employees
                 <mat-icon>arrow_forward</mat-icon>
               </a>
@@ -263,7 +302,7 @@ import { ComplianceService, ReadinessMetrics } from '../core/compliance.service'
               }
             </div>
             <div class="metric-footer">
-              <a mat-button color="primary" routerLink="/employees">
+              <a mat-button color="primary" routerLink="/employees" [queryParams]="{ filter: 'no-classification' }">
                 Go to Employees
                 <mat-icon>arrow_forward</mat-icon>
               </a>
@@ -397,6 +436,100 @@ import { ComplianceService, ReadinessMetrics } from '../core/compliance.service'
     .status-badge.status-incomplete {
       background: #fef2f2;
       color: #dc2626;
+    }
+
+    /* Priority Action List */
+    .action-list-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+
+    .action-list-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .action-list-icon {
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+      color: #f59e0b;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .action-list-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 2px 0;
+    }
+
+    .action-list-subtitle {
+      font-size: 13px;
+      color: #64748b;
+      margin: 0;
+    }
+
+    .action-items {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .action-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .action-rank {
+      font-size: 13px;
+      font-weight: 700;
+      color: #94a3b8;
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .action-item-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: #4f46e5;
+      flex-shrink: 0;
+    }
+
+    .action-item-body {
+      flex: 1;
+    }
+
+    .action-item-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+      margin: 0 0 2px 0;
+    }
+
+    .action-item-desc {
+      font-size: 12px;
+      color: #64748b;
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    .action-item-cta {
+      flex-shrink: 0;
+      font-size: 13px;
     }
 
     /* Metrics Grid */
@@ -646,6 +779,7 @@ export class ReadinessDashboardComponent implements OnInit {
   metrics: ReadinessMetrics | null = null;
   loading = true;
   categoryEntries: [string, number][] = [];
+  topActions: PriorityAction[] = [];
 
   ngOnInit() {
     this.loadMetrics();
@@ -657,6 +791,7 @@ export class ReadinessDashboardComponent implements OnInit {
       next: (data) => {
         this.metrics = data;
         this.categoryEntries = Object.entries(data.rationaleLibrary.categoryCoverage);
+        this.topActions = this.computeTopActions(data);
         this.loading = false;
       },
       error: () => {
@@ -701,5 +836,76 @@ export class ReadinessDashboardComponent implements OnInit {
 
   formatCategory(category: string): string {
     return category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  private computeTopActions(m: ReadinessMetrics): PriorityAction[] {
+    const actions: PriorityAction[] = [];
+    const missing = (covered: number, total: number) => total - covered;
+
+    const pdMissing = missing(m.payDecisionDocumentation.covered, m.payDecisionDocumentation.total);
+    if (pdMissing > 0) {
+      actions.push({
+        icon: 'gavel',
+        title: `Document pay decisions for ${pdMissing} employee${pdMissing !== 1 ? 's' : ''}`,
+        description: 'Finalised pay decisions are required to demonstrate structured, objective decision-making for every employee.',
+        link: '/employees',
+        queryParams: { filter: 'no-decisions' },
+        weight: (100 - m.payDecisionDocumentation.percentage) * 0.25,
+      });
+    }
+
+    const srMissing = missing(m.salaryRangeCoverage.covered, m.salaryRangeCoverage.total);
+    if (srMissing > 0) {
+      actions.push({
+        icon: 'paid',
+        title: `Define salary ranges for ${srMissing} comparator group${srMissing !== 1 ? 's' : ''}`,
+        description: 'Salary ranges are required for pay transparency disclosures and compa-ratio analysis.',
+        link: '/settings/salary-ranges',
+        weight: (100 - m.salaryRangeCoverage.percentage) * 0.20,
+      });
+    }
+
+    if (!m.riskAnalysis.lastRunAt) {
+      actions.push({
+        icon: 'monitoring',
+        title: 'Run a pay gap risk analysis',
+        description: 'Identify comparator groups that may exceed the 5% gender pay gap threshold before your reporting deadline.',
+        link: '/risk',
+        weight: 15,
+      });
+    } else if (m.riskAnalysis.alertCount > 0) {
+      actions.push({
+        icon: 'monitoring',
+        title: `Review ${m.riskAnalysis.alertCount} pay gap alert${m.riskAnalysis.alertCount !== 1 ? 's' : ''}`,
+        description: 'Groups with gaps at or above 5% require documented review and remediation planning.',
+        link: '/risk',
+        weight: m.riskAnalysis.alertCount * 5,
+      });
+    }
+
+    const gdMissing = missing(m.genderDataCoverage.covered, m.genderDataCoverage.total);
+    if (gdMissing > 0) {
+      actions.push({
+        icon: 'wc',
+        title: `Add gender data for ${gdMissing} employee${gdMissing !== 1 ? 's' : ''}`,
+        description: 'Gender data is required for pay gap calculations. Update records via CSV re-import.',
+        link: '/imports/new',
+        weight: (100 - m.genderDataCoverage.percentage) * 0.15,
+      });
+    }
+
+    const clMissing = missing(m.classificationCoverage.covered, m.classificationCoverage.total);
+    if (clMissing > 0) {
+      actions.push({
+        icon: 'category',
+        title: `Confirm classifications for ${clMissing} role${clMissing !== 1 ? 's' : ''}`,
+        description: 'Confirmed role classifications support equal work comparisons required by the directive.',
+        link: '/employees',
+        queryParams: { filter: 'no-classification' },
+        weight: (100 - m.classificationCoverage.percentage) * 0.10,
+      });
+    }
+
+    return actions.sort((a, b) => b.weight - a.weight).slice(0, 3);
   }
 }

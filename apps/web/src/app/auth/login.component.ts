@@ -26,7 +26,7 @@ import { AuthService } from '../core/auth.service';
             <div class="brand-logo">
               <span class="brand-reason">Reason</span><span class="brand-grid">Grid</span>
             </div>
-            <span class="brand-tagline">Pay Intelligence</span>
+            <span class="brand-tagline">Compensation Governance</span>
           </div>
 
           <div class="login-form-section">
